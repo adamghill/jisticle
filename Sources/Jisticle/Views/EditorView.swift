@@ -8,6 +8,7 @@ struct EditorView: View {
 
     @AppStorage("editorFontSize") private var fontSize = Int(NSFont.monospacedSystemFont(ofSize: 0, weight: .regular).pointSize)
     @State private var currentContent: String = ""
+    @State private var currentLanguage: CodeEditor.Language = .init(rawValue: "plaintext")
     @State private var isDirty = false
 
     private var theme: CodeEditor.ThemeName {
@@ -26,6 +27,7 @@ struct EditorView: View {
         .onChange(of: appState.selectedFile) { _, newFile in
             print("[EditorView] selectedFile changed to: \(newFile?.filename ?? "nil")")
             currentContent = newFile?.content ?? ""
+            currentLanguage = language(for: newFile)
             isDirty = false
         }
         .onChange(of: appState.selectedGist) { _, newGist in
@@ -82,13 +84,14 @@ struct EditorView: View {
                         isDirty = true
                     }
                 ),
-                language: language(for: file),
+                language: currentLanguage,
                 theme: theme,
                 fontSize: .init(get: { CGFloat(fontSize) }, set: { fontSize = Int($0) }),
                 flags: [.editable, .selectable, .smartIndent]
             )
             .onAppear {
                 currentContent = file.content ?? ""
+                currentLanguage = language(for: file)
                 isDirty = false
             }
         }
@@ -143,7 +146,8 @@ struct EditorView: View {
 
     // Maps GitHub languages to ZeeZide/CodeEditor languages
     // ZeeZide/CodeEditor supports 180+ languages via highlight.js
-    private func language(for file: GistFile) -> CodeEditor.Language {
+    private func language(for file: GistFile?) -> CodeEditor.Language {
+        guard let file else { return .init(rawValue: "plaintext") }
         let ext = (file.filename as NSString).pathExtension.lowercased()
 
         switch ext {
