@@ -44,11 +44,22 @@ struct EditorView: View {
     private func editorContent(gist: Gist, file: GistFile) -> some View {
         VStack(spacing: 0) {
             // Toolbar
-            HStack {
-                Text(file.filename)
-                    .font(.headline)
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let url = URL(string: file.rawUrl), !file.rawUrl.isEmpty {
+                        Link(destination: url) {
+                            Text(file.filename)
+                                .font(.headline)
+                        }
+                    } else {
+                        Text(file.filename)
+                            .font(.headline)
+                    }
 
-                Spacer()
+                    Text(formatBytes(file.size))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 Text(file.displayLanguage)
                     .font(.caption)
@@ -57,6 +68,8 @@ struct EditorView: View {
                     .padding(.vertical, 2)
                     .background(.secondary.opacity(0.1))
                     .cornerRadius(4)
+
+                Spacer()
 
                 if isDirty {
                     Text("Modified")
@@ -230,6 +243,12 @@ struct EditorView: View {
         case "tex":                             return .tex
         default:                                return .init(rawValue: "plaintext")
         }
+    }
+
+    private func formatBytes(_ bytes: Int) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: Int64(bytes))
     }
 }
 

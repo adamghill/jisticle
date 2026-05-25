@@ -171,19 +171,11 @@ struct GistRow: View {
                 .truncationMode(.tail)
 
             HStack(spacing: 8) {
-                if let lang = gist.primaryLanguage {
-                    Label(lang, systemImage: "circle.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                Text(gist.fileList.count == 1 ? "1 file" : "\(gist.fileList.count) files")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
-
-                if gist.fileList.count > 1 {
-                    Text("\(gist.fileList.count) files")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
 
                 if !gist.public {
                     Image(systemName: "lock.fill")
