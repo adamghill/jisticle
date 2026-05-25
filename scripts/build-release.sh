@@ -52,4 +52,16 @@ codesign --force -s - --entitlements Sources/Jisticle/Jisticle.entitlements "${A
 echo "Creating DMG..."
 hdiutil create -volname "${APP_NAME}" -srcfolder "${APP_PATH}" -ov -format UDZO "${APP_NAME}-macOS.dmg"
 
-echo "Success! Created ${APP_NAME}-macOS.dmg"
+# Mount DMG and copy .app from mounted volume (ensures it's the exact version in the DMG)
+echo "Mounting DMG to copy fresh .app..."
+MOUNT_OUTPUT=$(hdiutil attach "${APP_NAME}-macOS.dmg" -nobrowse)
+MOUNT_POINT=$(echo "${MOUNT_OUTPUT}" | grep -o '/Volumes/.*' | tail -1)
+
+echo "Copying .app from mounted DMG..."
+cp -R "${MOUNT_POINT}/${APP_NAME}.app" "./${APP_NAME}.app"
+
+# Open DMG in Finder
+echo "Opening DMG..."
+open "${APP_NAME}-macOS.dmg"
+
+echo "Success! Created ${APP_NAME}-macOS.dmg and ${APP_NAME}.app"
