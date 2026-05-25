@@ -2,7 +2,6 @@ import SwiftUI
 
 struct GistContentView: View {
     @Environment(AppState.self) private var appState
-    @State private var showAddFileSheet = false
     @State private var isAddingFile = false
     @State private var newFilename = ""
     @FocusState private var filenameFieldFocused: Bool
@@ -16,9 +15,6 @@ struct GistContentView: View {
             }
         }
         .frame(minWidth: 200)
-        .sheet(isPresented: $showAddFileSheet) {
-            AddFileSheet(isPresented: $showAddFileSheet)
-        }
     }
 
     private func fileList(gist: Gist) -> some View {
@@ -58,10 +54,13 @@ struct GistContentView: View {
                     }
 
                     HStack(spacing: 12) {
-                        Label("\(gist.commentCount)", systemImage: "bubble")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .help("\(gist.commentCount) comment\(gist.commentCount == 1 ? "" : "s")")
+                        let commentsUrl = URL(string: "\(gist.htmlUrl)#comments")!
+                        Link(destination: commentsUrl) {
+                            Label("\(gist.commentCount)", systemImage: "bubble")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .help("\(gist.commentCount) comment\(gist.commentCount == 1 ? "" : "s")")
 
                         let revisionsUrl = URL(string: "\(gist.htmlUrl)/revisions")!
                         Link(destination: revisionsUrl) {
