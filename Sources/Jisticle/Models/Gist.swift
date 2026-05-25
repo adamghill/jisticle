@@ -74,7 +74,7 @@ struct Gist: Identifiable, Codable, Equatable, Hashable {
     }
 
     var fileList: [GistFile] {
-        Array(files.values)
+        Array(files.values).sorted { $0.filename.localizedCaseInsensitiveCompare($1.filename) == .orderedAscending }
     }
 
     var displayTitle: String {
