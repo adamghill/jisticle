@@ -168,6 +168,7 @@ class AuthService: ObservableObject {
         pollTask = nil
 
         try? keychain.remove(tokenKey)
+        GistCache.clear()
         isAuthenticated = false
         isAuthenticating = false
         deviceCode = nil

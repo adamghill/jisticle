@@ -62,11 +62,17 @@ class AppState {
     }
 
     func loadGists() async {
+        if let cached = GistCache.load(), !cached.isEmpty {
+            gists = cached
+        }
+
         isLoading = true
         errorMessage = nil
 
         do {
-            gists = try await gistProvider.listGists()
+            let fresh = try await gistProvider.listGists()
+            gists = fresh
+            GistCache.save(fresh)
         } catch let error as GistProviderError {
             errorMessage = error.errorDescription
         } catch {
@@ -111,6 +117,7 @@ class AppState {
         do {
             let newGist = try await gistProvider.createGist(draft)
             gists.insert(newGist, at: 0)
+            GistCache.save(gists)
             selectedGist = newGist
             selectedFile = newGist.fileList.first
         } catch let error as GistProviderError {
@@ -133,6 +140,7 @@ class AppState {
             if let index = gists.firstIndex(where: { $0.id == gist.id }) {
                 gists[index] = updatedGist
             }
+            GistCache.save(gists)
             selectedGist = updatedGist
         } catch let error as GistProviderError {
             errorMessage = error.errorDescription
@@ -230,6 +238,7 @@ class AppState {
         do {
             try await gistProvider.deleteGist(id: gist.id)
             gists.removeAll { $0.id == gist.id }
+            GistCache.save(gists)
             if selectedGist?.id == gist.id {
                 selectedGist = nil
                 selectedFile = nil
