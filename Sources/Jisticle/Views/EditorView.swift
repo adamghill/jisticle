@@ -24,8 +24,18 @@ struct EditorView: View {
         }
         .frame(minWidth: 400)
         .onChange(of: appState.selectedFile) { _, newFile in
+            print("[EditorView] selectedFile changed to: \(newFile?.filename ?? "nil")")
             currentContent = newFile?.content ?? ""
             isDirty = false
+        }
+        .onChange(of: appState.selectedGist) { _, newGist in
+            print("[EditorView] selectedGist changed to: \(newGist?.id ?? "nil")")
+            // Re-sync selectedFile to new gist's file instance
+            if let filename = appState.selectedFile?.filename,
+               let updatedFile = newGist?.files[filename] {
+                print("[EditorView] Re-syncing selectedFile to new instance")
+                appState.selectedFile = updatedFile
+            }
         }
     }
 
@@ -96,26 +106,38 @@ struct EditorView: View {
     }
 
     private func saveChanges() {
-        guard let gist = appState.selectedGist else { return }
-
-        var files: [String: GistFileDraft] = [:]
-        for gistFile in gist.fileList {
-            if gistFile.id == appState.selectedFile?.id {
-                files[gistFile.filename] = GistFileDraft(content: currentContent)
-            } else {
-                files[gistFile.filename] = GistFileDraft(content: gistFile.content ?? "")
-            }
-        }
-
-        let draft = GistDraft(
-            description: gist.displayTitle,
-            isPublic: gist.public,
-            files: files
-        )
+        guard let gist = appState.selectedGist, let file = appState.selectedFile else { return }
 
         Task {
-            await appState.updateGist(draft: draft)
-            isDirty = false
+            // Check if this is a new file (not yet on GitHub)
+            if appState.newFilenames.contains(file.filename) {
+                // Create the file on GitHub with content
+                do {
+                    _ = try await appState.createFileOnGitHub(filename: file.filename, content: currentContent)
+                    isDirty = false
+                } catch {
+                    appState.errorMessage = "Failed to create file: \(error.localizedDescription)"
+                }
+            } else {
+                // Regular update for existing files
+                var files: [String: GistFileDraft] = [:]
+                for gistFile in gist.fileList {
+                    if gistFile.id == file.id {
+                        files[gistFile.filename] = GistFileDraft(content: currentContent)
+                    } else {
+                        files[gistFile.filename] = GistFileDraft(content: gistFile.content ?? "")
+                    }
+                }
+
+                let draft = GistDraft(
+                    description: gist.displayTitle,
+                    isPublic: gist.public,
+                    files: files
+                )
+
+                await appState.updateGist(draft: draft)
+                isDirty = false
+            }
         }
     }
 

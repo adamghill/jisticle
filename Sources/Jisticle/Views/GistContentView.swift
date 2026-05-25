@@ -80,14 +80,7 @@ struct GistContentView: View {
             Divider()
 
             // File list
-            List(selection: .init(
-                get: { appState.selectedFile },
-                set: { file in
-                    if let file = file {
-                        appState.selectFile(file)
-                    }
-                }
-            )) {
+            List {
                 Section {
                     // Inline add file input row
                     if isAddingFile {
@@ -101,16 +94,16 @@ struct GistContentView: View {
                                     cancelAddFile()
                                     return .handled
                                 }
-                            
+
                             Spacer()
-                            
+
                             Button("✓") {
                                 confirmAddFile()
                             }
                             .disabled(newFilename.isEmpty)
                             .buttonStyle(.borderedProminent)
                             .controlSize(.small)
-                            
+
                             Button("×") {
                                 cancelAddFile()
                             }
@@ -119,11 +112,13 @@ struct GistContentView: View {
                         }
                         .padding(.vertical, 2)
                     }
-                    
+
                     // Existing files
                     ForEach(gist.fileList) { file in
                         FileRow(file: file)
-                            .tag(file)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.visible)
+                            .listRowBackground(appState.selectedFile?.filename == file.filename ? Color.accentColor.opacity(0.2) : Color.clear)
                     }
                 } header: {
                     HStack {
@@ -142,6 +137,7 @@ struct GistContentView: View {
                 }
             }
             .listStyle(.plain)
+            .environment(\.defaultMinListRowHeight, 30)
         }
     }
 
@@ -179,14 +175,12 @@ struct GistContentView: View {
     
     private func confirmAddFile() {
         guard !newFilename.isEmpty else { return }
-        
-        Task {
-            await appState.addFileToGist(filename: newFilename, content: "")
-            await MainActor.run {
-                isAddingFile = false
-                newFilename = ""
-            }
-        }
+
+        // Add file locally only - will be synced to GitHub on first save
+        appState.addFileToGistLocal(filename: newFilename)
+
+        isAddingFile = false
+        newFilename = ""
     }
     
     private func cancelAddFile() {
@@ -200,7 +194,12 @@ struct FileRow: View {
     @Environment(AppState.self) private var appState
     @State private var isRenaming = false
     @State private var renameText = ""
+    @State private var showDeleteConfirmation = false
     @FocusState private var renameFieldFocused: Bool
+
+    private var isNewFile: Bool {
+        appState.newFilenames.contains(file.filename)
+    }
 
     var body: some View {
         HStack {
@@ -217,49 +216,73 @@ struct FileRow: View {
                             return .handled
                         }
                 } else {
-                    Text(file.filename)
-                        .font(.system(size: 13))
-                        .lineLimit(1)
+                    HStack(spacing: 4) {
+                        Text(file.filename)
+                            .font(.system(size: 13))
+                            .lineLimit(1)
+
+                        if isNewFile {
+                            Image(systemName: "circle.fill")
+                                .font(.system(size: 6))
+                                .foregroundStyle(.orange)
+                                .help("New file - not yet saved to GitHub")
+                        }
+                    }
                 }
 
-                HStack {
-                    Text(file.displayLanguage)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                if !isNewFile {
+                    HStack {
+                        Text(file.displayLanguage)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
 
-                    Text("•")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        Text("•")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
 
-                    Text(formatBytes(file.size))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        Text(formatBytes(file.size))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
             Spacer()
         }
+        .padding(.horizontal, 8)
         .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .onTapGesture(count: 2) {
-            if !isRenaming {
-                startRename()
-            }
+        .onTapGesture {
+            print("[FileRow] Single tap on: \(file.filename)")
+            appState.selectFile(file)
         }
         .contextMenu {
             Button("Rename") {
                 startRename()
             }
             .keyboardShortcut("r", modifiers: [.command])
-            
+
             Divider()
-            
+
+            Button("Delete", role: .destructive) {
+                showDeleteConfirmation = true
+            }
+            .keyboardShortcut(.delete, modifiers: [.command])
+        }
+        .confirmationDialog(
+            "Delete \"\(file.filename)\"?",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
             Button("Delete", role: .destructive) {
                 Task {
                     await appState.deleteFileFromGist(filename: file.filename)
                 }
             }
-            .keyboardShortcut(.delete, modifiers: [.command])
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This action cannot be undone.")
         }
     }
     

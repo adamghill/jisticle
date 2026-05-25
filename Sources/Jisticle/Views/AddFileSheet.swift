@@ -74,11 +74,16 @@ struct AddFileSheet: View {
     private func addFile() {
         isSaving = true
 
+        print("=== AddFileSheet.addFile START - filename: '\(filename)', content length: \(content.count) ===")
+
         // Ensure we have a valid filename and content before adding
         guard !filename.isEmpty && !content.isEmpty else {
+            print("=== AddFileSheet.addFile GUARD FAILED - filename empty: \(filename.isEmpty), content empty: \(content.isEmpty) ===")
             isSaving = false
             return
         }
+
+        print("=== AddFileSheet adding file: \(filename), content length: \(content.count) ===")
 
         Task {
             await appState.addFileToGist(filename: filename, content: content)

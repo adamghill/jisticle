@@ -21,9 +21,22 @@ enum GistCache {
     }
 
     static func load() -> [Gist]? {
-        guard let url = cacheURL else { return nil }
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? decoder.decode([Gist].self, from: data)
+        guard let url = cacheURL else {
+            print("[GistCache] load: no cache URL")
+            return nil
+        }
+        guard let data = try? Data(contentsOf: url) else {
+            print("[GistCache] load: no file at \(url.path)")
+            return nil
+        }
+        do {
+            let gists = try decoder.decode([Gist].self, from: data)
+            print("[GistCache] load: \(gists.count) gists from cache")
+            return gists
+        } catch {
+            print("[GistCache] load: decode failed — \(error)")
+            return nil
+        }
     }
 
     static func save(_ gists: [Gist]) {
