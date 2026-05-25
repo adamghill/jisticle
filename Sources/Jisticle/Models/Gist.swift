@@ -19,6 +19,7 @@ struct Gist: Identifiable, Codable, Equatable, Hashable {
     var forkCount: Int
     var commentCount: Int
     var revisionCount: Int
+    var commitSha: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -53,6 +54,7 @@ struct Gist: Identifiable, Codable, Equatable, Hashable {
         self.forkCount = forkCount
         self.commentCount = commentCount
         self.revisionCount = revisionCount
+        self.commitSha = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -69,8 +71,9 @@ struct Gist: Identifiable, Codable, Equatable, Hashable {
         forkCount = try c.decodeIfPresent(Int.self, forKey: .forkCount) ?? 0
         commentCount = try c.decodeIfPresent(Int.self, forKey: .commentCount) ?? 0
         let r = try decoder.container(keyedBy: RestCodingKeys.self)
-        let history = try r.decodeIfPresent([AnyCodableIgnored].self, forKey: .history)
+        let history = try r.decodeIfPresent([GistHistoryEntry].self, forKey: .history)
         revisionCount = history?.count ?? 0
+        commitSha = history?.first?.version
     }
 
     var fileList: [GistFile] {
@@ -90,6 +93,15 @@ struct Gist: Identifiable, Codable, Equatable, Hashable {
     var primaryLanguage: String? {
         fileList.first?.language
     }
+
+    var zipArchiveUrl: URL? {
+        guard let commitSha = commitSha, let owner = owner else { return nil }
+        return URL(string: "https://gist.github.com/\(owner.login)/\(id)/archive/\(commitSha).zip")
+    }
+}
+
+private struct GistHistoryEntry: Decodable {
+    let version: String
 }
 
 struct GistOwner: Codable, Equatable, Hashable {

@@ -60,6 +60,7 @@ struct GistContentView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        .pointingCursor()
                         .help("\(gist.commentCount) comment\(gist.commentCount == 1 ? "" : "s")")
 
                         let revisionsUrl = URL(string: "\(gist.htmlUrl)/revisions")!
@@ -68,7 +69,18 @@ struct GistContentView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                        .pointingCursor()
                         .help("\(gist.revisionCount) revision\(gist.revisionCount == 1 ? "" : "s")")
+                    }
+
+                    if let zipUrl = gist.zipArchiveUrl {
+                        Link(destination: zipUrl) {
+                            Label("Download", systemImage: "arrow.down.circle")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .pointingCursor()
+                        .help("Download ZIP archive")
                     }
                 }
             }

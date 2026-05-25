@@ -11,41 +11,64 @@ struct SidebarView: View {
             // Search bar
             searchBar
 
-            // Sort picker
-            sortPicker
+            Divider()
+
+            // Gists header
+            HStack {
+                Text("Gists")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Picker("Sort", selection: .init(
+                    get: { appState.sortOrder },
+                    set: { appState.sortOrder = $0 }
+                )) {
+                    ForEach(GistSortOrder.allCases) { order in
+                        Text(order.rawValue).tag(order)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .controlSize(.small)
+                .font(.caption)
+                Button("+") {
+                    NotificationCenter.default.post(name: .createNewGist, object: nil)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Divider()
 
             // Gist list
             List(selection: .init(
                 get: { appState.selectedGist },
                 set: { gist in
                     if let gist = gist {
-                        appState.selectGist(gist)
+                        Task { appState.selectGist(gist) }
                     }
                 }
             )) {
-                Section {
-                    ForEach(appState.filteredGists) { gist in
-                        GistRow(gist: gist)
-                            .tag(gist)
-                            .contextMenu {
-                                Button("Open in Browser") {
-                                    if let url = URL(string: gist.htmlUrl) {
-                                        NSWorkspace.shared.open(url)
-                                    }
-                                }
-
-                                Divider()
-
-                                Button("Delete", role: .destructive) {
-                                    gistToDelete = gist
-                                    showingDeleteConfirmation = true
+                ForEach(appState.filteredGists) { gist in
+                    GistRow(gist: gist)
+                        .tag(gist)
+                        .contextMenu {
+                            Button("Open in Browser") {
+                                if let url = URL(string: gist.htmlUrl) {
+                                    NSWorkspace.shared.open(url)
                                 }
                             }
-                    }
-                } header: {
-                    Text("Gists")
-                        .font(.caption)
-                        .textCase(.none)
+
+                            Divider()
+
+                            Button("Delete", role: .destructive) {
+                                gistToDelete = gist
+                                showingDeleteConfirmation = true
+                            }
+                        }
                 }
             }
             .listStyle(.sidebar)
@@ -97,28 +120,6 @@ struct SidebarView: View {
         .padding(.bottom, 8)
     }
 
-    private var sortPicker: some View {
-        HStack {
-            Text("Sort:")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Picker("Sort", selection: .init(
-                get: { appState.sortOrder },
-                set: { appState.sortOrder = $0 }
-            )) {
-                ForEach(GistSortOrder.allCases) { order in
-                    Text(order.rawValue).tag(order)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.menu)
-            .font(.caption)
-        }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 6)
-    }
-
     private var statusBar: some View {
         HStack {
             if appState.isLoading {
@@ -160,28 +161,46 @@ struct SidebarView: View {
     }
 }
 
+private extension Date {
+    var relativeFormatted: String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.dateTimeStyle = .named
+        formatter.calendar?.minimumDaysInFirstWeek = 1
+        return formatter.localizedString(for: self, relativeTo: .now)
+    }
+}
+
 struct GistRow: View {
     let gist: Gist
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(gist.displayTitle)
-                .font(.system(size: 13))
-                .lineLimit(2)
-                .truncationMode(.tail)
-
-            HStack(spacing: 8) {
-                Text(gist.fileList.count == 1 ? "1 file" : "\(gist.fileList.count) files")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
+            HStack(spacing: 4) {
                 if !gist.public {
                     Image(systemName: "lock.fill")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+
+                Text(gist.displayTitle)
+                    .font(.system(size: 13))
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+            }
+
+            HStack(spacing: 4) {
+                Text(gist.fileList.count == 1 ? "1 file" : "\(gist.fileList.count) files")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                Text("·")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                Text(gist.updatedAt.relativeFormatted)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 2)

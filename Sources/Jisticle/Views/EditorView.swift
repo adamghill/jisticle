@@ -46,28 +46,32 @@ struct EditorView: View {
             // Toolbar
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
-                    if let url = URL(string: file.rawUrl), !file.rawUrl.isEmpty {
-                        Link(destination: url) {
+                    HStack(alignment: .top, spacing: 6) {
+                        if let url = URL(string: file.rawUrl), !file.rawUrl.isEmpty {
+                            Link(destination: url) {
+                                Text(file.filename)
+                                    .font(.headline)
+                            }
+                            .pointingCursor()
+                        } else {
                             Text(file.filename)
                                 .font(.headline)
                         }
-                    } else {
-                        Text(file.filename)
-                            .font(.headline)
+
+                        Text(file.displayLanguage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .background(.secondary.opacity(0.1))
+                            .cornerRadius(4)
+                            .padding(.top, 2)
                     }
 
                     Text(formatBytes(file.size))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-
-                Text(file.displayLanguage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(.secondary.opacity(0.1))
-                    .cornerRadius(4)
 
                 Spacer()
 
