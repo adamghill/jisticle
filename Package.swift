@@ -10,15 +10,14 @@ let package = Package(
         .executable(name: "Jisticle", targets: ["Jisticle"])
     ],
     dependencies: [
-        .package(url: "https://github.com/mchakravarty/CodeEditorView.git", from: "0.14.0"),
+        .package(url: "https://github.com/ZeeZide/CodeEditor.git", from: "1.0.0"),
         .package(url: "https://github.com/kishikawakatsumi/KeychainAccess.git", from: "4.2.2"),
     ],
     targets: [
         .executableTarget(
             name: "Jisticle",
             dependencies: [
-                .product(name: "CodeEditorView", package: "CodeEditorView"),
-                .product(name: "LanguageSupport", package: "CodeEditorView"),
+                .product(name: "CodeEditor", package: "CodeEditor"),
                 .product(name: "KeychainAccess", package: "KeychainAccess"),
             ],
             exclude: ["Info.plist"],

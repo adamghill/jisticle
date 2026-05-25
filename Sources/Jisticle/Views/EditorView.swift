@@ -1,65 +1,17 @@
-@preconcurrency import CodeEditorView
-import LanguageSupport
+import CodeEditor
 import SwiftUI
-
-nonisolated(unsafe) private let safeDefaultDark = Theme(
-    colourScheme: .dark,
-    fontName: "SFMono-Medium",
-    fontSize: 13.0,
-    textColour: NSColor(red: 0.87, green: 0.87, blue: 0.88, alpha: 1.0),
-    commentColour: NSColor(red: 0.51, green: 0.55, blue: 0.59, alpha: 1.0),
-    stringColour: NSColor(red: 0.94, green: 0.53, blue: 0.46, alpha: 1.0),
-    characterColour: NSColor(red: 0.84, green: 0.79, blue: 0.53, alpha: 1.0),
-    numberColour: NSColor(red: 0.81, green: 0.74, blue: 0.40, alpha: 1.0),
-    identifierColour: NSColor(red: 0.41, green: 0.72, blue: 0.64, alpha: 1.0),
-    operatorColour: NSColor(red: 0.62, green: 0.94, blue: 0.87, alpha: 1.0),
-    keywordColour: NSColor(red: 0.94, green: 0.51, blue: 0.69, alpha: 1.0),
-    symbolColour: NSColor(red: 0.72, green: 0.72, blue: 0.73, alpha: 1.0),
-    typeColour: NSColor(red: 0.36, green: 0.85, blue: 1.0, alpha: 1.0),
-    fieldColour: NSColor(red: 0.63, green: 0.40, blue: 0.90, alpha: 1.0),
-    caseColour: NSColor(red: 0.82, green: 0.66, blue: 1.0, alpha: 1.0),
-    backgroundColour: NSColor(red: 0.16, green: 0.16, blue: 0.18, alpha: 1.0),
-    currentLineColour: NSColor(red: 0.19, green: 0.20, blue: 0.22, alpha: 1.0),
-    selectionColour: NSColor(red: 0.40, green: 0.44, blue: 0.51, alpha: 1.0),
-    cursorColour: NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0),
-    invisiblesColour: NSColor(red: 0.33, green: 0.37, blue: 0.42, alpha: 1.0)
-)
-
-nonisolated(unsafe) private let safeDefaultLight = Theme(
-    colourScheme: .light,
-    fontName: "SFMono-Medium",
-    fontSize: 13.0,
-    textColour: NSColor(red: 0.15, green: 0.15, blue: 0.15, alpha: 1.0),
-    commentColour: NSColor(red: 0.45, green: 0.50, blue: 0.55, alpha: 1.0),
-    stringColour: NSColor(red: 0.76, green: 0.24, blue: 0.16, alpha: 1.0),
-    characterColour: NSColor(red: 0.14, green: 0.19, blue: 0.81, alpha: 1.0),
-    numberColour: NSColor(red: 0.0, green: 0.05, blue: 1.0, alpha: 1.0),
-    identifierColour: NSColor(red: 0.23, green: 0.50, blue: 0.54, alpha: 1.0),
-    operatorColour: NSColor(red: 0.18, green: 0.05, blue: 0.43, alpha: 1.0),
-    keywordColour: NSColor(red: 0.63, green: 0.28, blue: 0.62, alpha: 1.0),
-    symbolColour: NSColor(red: 0.24, green: 0.13, blue: 0.48, alpha: 1.0),
-    typeColour: NSColor(red: 0.04, green: 0.29, blue: 0.46, alpha: 1.0),
-    fieldColour: NSColor(red: 0.36, green: 0.15, blue: 0.60, alpha: 1.0),
-    caseColour: NSColor(red: 0.18, green: 0.05, blue: 0.43, alpha: 1.0),
-    backgroundColour: NSColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0),
-    currentLineColour: NSColor(red: 0.93, green: 0.96, blue: 1.0, alpha: 1.0),
-    selectionColour: NSColor(red: 0.73, green: 0.84, blue: 0.99, alpha: 1.0),
-    cursorColour: NSColor(red: 0.0, green: 0.0, blue: 0.0, alpha: 1.0),
-    invisiblesColour: NSColor(red: 0.84, green: 0.84, blue: 0.84, alpha: 1.0)
-)
 
 @MainActor
 struct EditorView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) private var colorScheme
 
-    @State private var editorPosition = CodeEditor.Position()
-    @State private var editorMessages: Set<TextLocated<Message>> = []
+    @AppStorage("editorFontSize") private var fontSize = Int(NSFont.monospacedSystemFont(ofSize: 0, weight: .regular).pointSize)
     @State private var currentContent: String = ""
     @State private var isDirty = false
 
-    private var theme: Theme {
-        colorScheme == .dark ? safeDefaultDark : safeDefaultLight
+    private var theme: CodeEditor.ThemeName {
+        colorScheme == .dark ? .atelierSavannaDark : .atelierSavannaLight
     }
 
     var body: some View {
@@ -111,21 +63,20 @@ struct EditorView: View {
 
             Divider()
 
-            // Code Editor
+            // Code Editor with ZeeZide/CodeEditor
             CodeEditor(
-                text: .init(
+                source: .init(
                     get: { currentContent },
                     set: { newValue in
                         currentContent = newValue
                         isDirty = true
                     }
                 ),
-                position: $editorPosition,
-                messages: $editorMessages,
-                language: languageConfiguration(for: file),
-                layout: CodeEditor.LayoutConfiguration(showMinimap: false, wrapText: true)
+                language: language(for: file),
+                theme: theme,
+                fontSize: .init(get: { CGFloat(fontSize) }, set: { fontSize = Int($0) }),
+                flags: [.editable, .selectable, .smartIndent]
             )
-            .environment(\.codeEditorTheme, theme)
             .onAppear {
                 currentContent = file.content ?? ""
                 isDirty = false
@@ -168,32 +119,90 @@ struct EditorView: View {
         }
     }
 
-    private func languageConfiguration(for file: GistFile) -> LanguageConfiguration {
+    // Maps GitHub languages to ZeeZide/CodeEditor languages
+    // ZeeZide/CodeEditor supports 180+ languages via highlight.js
+    private func language(for file: GistFile) -> CodeEditor.Language {
         let ext = (file.filename as NSString).pathExtension.lowercased()
 
-        // CodeEditorView has built-in support for: swift, haskell, agda, cabal, cypher
-        // For others, we return .none (plain text with basic highlighting)
         switch ext {
-        case "swift":
-            return .swift()
-        case "hs":
-            return .haskell()
-        case "agda":
-            return .agda()
-        case "cabal":
-            return .cabal()
-        case "cypher", "cql":
-            return .cypher()
-        default:
-            // Try to detect from language name
-            if let lang = file.language?.lowercased() {
-                switch lang {
-                case "swift": return .swift()
-                case "haskell": return .haskell()
-                default: return .none
-                }
-            }
-            return .none
+        case "swift":                           return .swift
+        case "py":                              return .python
+        case "js", "mjs", "cjs":               return .javascript
+        case "ts", "mts", "cts":               return .typescript
+        case "jsx":                             return .init(rawValue: "jsx")
+        case "tsx":                             return .init(rawValue: "tsx")
+        case "rb", "rake", "gemspec":           return .ruby
+        case "go":                              return .go
+        case "rs":                              return .rust
+        case "java":                            return .java
+        case "kt", "kts":                       return .init(rawValue: "kotlin")
+        case "cs":                              return .cs
+        case "cpp", "cxx", "cc", "c++":        return .cpp
+        case "c", "h":                          return .c
+        case "m", "mm":                         return .objectivec
+        case "sh", "bash", "zsh", "fish":       return .shell
+        case "html", "htm":                     return .init(rawValue: "html")
+        case "css":                             return .css
+        case "scss", "sass":                    return .init(rawValue: "scss")
+        case "json":                            return .json
+        case "xml", "plist", "svg":             return .xml
+        case "yaml", "yml":                     return .yaml
+        case "toml":                            return .init(rawValue: "toml")
+        case "md", "markdown":                  return .markdown
+        case "sql":                             return .sql
+        case "r":                               return .init(rawValue: "r")
+        case "php":                             return .php
+        case "pl", "pm":                        return .init(rawValue: "perl")
+        case "lua":                             return .lua
+        case "hs", "lhs":                       return .init(rawValue: "haskell")
+        case "ex", "exs":                       return .init(rawValue: "elixir")
+        case "erl", "hrl":                      return .init(rawValue: "erlang")
+        case "scala":                           return .init(rawValue: "scala")
+        case "dart":                            return .init(rawValue: "dart")
+        case "dockerfile":                      return .dockerfile
+        case "makefile", "mk":                  return .makefile
+        case "ini", "cfg", "conf":              return .init(rawValue: "ini")
+        case "tex":                             return .tex
+        case "vim":                             return .init(rawValue: "vim")
+        default:                                break
+        }
+
+        // Fallback: use the language name reported by the GitHub API
+        switch file.language?.lowercased() {
+        case "swift":                           return .swift
+        case "python":                          return .python
+        case "javascript", "coffeescript":      return .javascript
+        case "typescript":                      return .typescript
+        case "ruby":                            return .ruby
+        case "go":                              return .go
+        case "rust":                            return .rust
+        case "java":                            return .java
+        case "kotlin":                          return .init(rawValue: "kotlin")
+        case "c#":                              return .cs
+        case "c++":                             return .cpp
+        case "c":                               return .c
+        case "objective-c", "objective-c++":   return .objectivec
+        case "shell", "bash":                   return .shell
+        case "html":                            return .init(rawValue: "html")
+        case "css":                             return .css
+        case "json":                            return .json
+        case "xml":                             return .xml
+        case "yaml":                            return .yaml
+        case "markdown":                        return .markdown
+        case "sql", "plpgsql", "tsql":          return .pgsql
+        case "r":                               return .init(rawValue: "r")
+        case "php":                             return .php
+        case "perl":                            return .init(rawValue: "perl")
+        case "lua":                             return .lua
+        case "haskell":                         return .init(rawValue: "haskell")
+        case "elixir":                          return .init(rawValue: "elixir")
+        case "erlang":                          return .init(rawValue: "erlang")
+        case "scala":                           return .init(rawValue: "scala")
+        case "dart":                            return .init(rawValue: "dart")
+        case "dockerfile":                      return .dockerfile
+        case "makefile":                        return .makefile
+        case "tex":                             return .tex
+        default:                                return .init(rawValue: "plaintext")
         }
     }
 }

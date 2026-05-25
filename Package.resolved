@@ -1,13 +1,22 @@
 {
-  "originHash" : "f19b4f04b076c37afec5ea67f55790456af24a0b611d6eb351735d6498da7799",
+  "originHash" : "fa03a907a0a7927e2555097b0827547c8ac584eb1ca870e219df0f3ec977cc13",
   "pins" : [
     {
-      "identity" : "codeeditorview",
+      "identity" : "codeeditor",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mchakravarty/CodeEditorView.git",
+      "location" : "https://github.com/ZeeZide/CodeEditor.git",
       "state" : {
-        "revision" : "aba6c189bb2f6fd9d7b8e9f5739aeb3c8c7e3254",
-        "version" : "0.15.4"
+        "revision" : "f5c076b94f4ceb05abff88ba91d75a8d57143f0c",
+        "version" : "1.2.6"
+      }
+    },
+    {
+      "identity" : "highlightr",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/helje5/Highlightr",
+      "state" : {
+        "revision" : "bd0358056ff1f12ea83833a9fc1b3b5a396a9da0",
+        "version" : "3.0.2"
       }
     },
     {
@@ -17,15 +26,6 @@
       "state" : {
         "revision" : "84e546727d66f1adc5439debad16270d0fdd04e7",
         "version" : "4.2.2"
-      }
-    },
-    {
-      "identity" : "rearrange",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/ChimeHQ/Rearrange.git",
-      "state" : {
-        "revision" : "5ff7f3363f7a08f77e0d761e38e6add31c2136e1",
-        "version" : "1.8.1"
       }
     }
   ],
