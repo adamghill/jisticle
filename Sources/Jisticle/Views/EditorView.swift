@@ -44,7 +44,7 @@ struct EditorView: View {
     private func editorContent(gist: Gist, file: GistFile) -> some View {
         VStack(spacing: 0) {
             // Toolbar
-            HStack(alignment: .top) {
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     if let url = URL(string: file.rawUrl), !file.rawUrl.isEmpty {
                         Link(destination: url) {

@@ -4,11 +4,9 @@ struct NewGistSheet: View {
     @Environment(AppState.self) private var appState
     @Binding var isPresented: Bool
 
-    @State private var description = ""
-    @State private var isPublic = true
     @State private var filename = ""
-    @State private var content = ""
-    @State private var isSaving = false
+    @State private var description = ""
+    @State private var isPrivate = true
 
     var body: some View {
         VStack(spacing: 0) {
@@ -17,73 +15,61 @@ struct NewGistSheet: View {
                 Text("New Gist")
                     .font(.title2)
                     .fontWeight(.semibold)
-
                 Spacer()
-
-                Button("Cancel") {
-                    isPresented = false
-                }
-                .keyboardShortcut(.escape)
-
-                Button("Create") {
-                    createGist()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!canCreate || isSaving)
-                .keyboardShortcut(.return, modifiers: .command)
             }
             .padding()
 
             Divider()
 
             // Form
-            Form {
-                Section {
-                    TextField("Description", text: $description)
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Description")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("Optional", text: $description)
                         .textFieldStyle(.roundedBorder)
-
-                    Toggle("Public Gist", isOn: $isPublic)
                 }
 
-                Section("File") {
-                    TextField("Filename (e.g., script.swift)", text: $filename)
-                        .textFieldStyle(.roundedBorder)
+                Toggle("Is Private", isOn: $isPrivate)
 
-                    TextEditor(text: $content)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 200)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 4)
-                                .stroke(.secondary.opacity(0.2), lineWidth: 1)
-                        )
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Filename")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    TextField("e.g. script.swift", text: $filename)
+                        .textFieldStyle(.roundedBorder)
                 }
             }
-            .formStyle(.grouped)
             .padding()
 
             Spacer()
+
+            Divider()
+
+            // Footer buttons
+            HStack {
+                Spacer()
+                Button("Cancel") {
+                    isPresented = false
+                }
+                .keyboardShortcut(.escape)
+
+                Button("Create") {
+                    appState.prepareDraftGist(
+                        filename: filename,
+                        description: description,
+                        isPublic: !isPrivate
+                    )
+                    isPresented = false
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(filename.isEmpty)
+                .keyboardShortcut(.return, modifiers: .command)
+            }
+            .padding()
         }
-        .frame(width: 600, height: 500)
-    }
-
-    private var canCreate: Bool {
-        !filename.isEmpty && !content.isEmpty
-    }
-
-    private func createGist() {
-        isSaving = true
-
-        let draft = GistDraft(
-            description: description,
-            isPublic: isPublic,
-            files: [filename: GistFileDraft(content: content)]
-        )
-
-        Task {
-            await appState.createGist(draft: draft)
-            isSaving = false
-            isPresented = false
-        }
+        .frame(width: 400, height: 260)
     }
 }
 

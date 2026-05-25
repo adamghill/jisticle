@@ -44,6 +44,12 @@ class AppState {
     /// Track filenames that are new (not yet saved to GitHub)
     var newFilenames: Set<String> = []
 
+    /// Track gist IDs that are local drafts (not yet POST'd to GitHub)
+    var pendingGistIds: Set<String> = []
+
+    /// Pending draft metadata keyed by local stub gist ID
+    var pendingGistDrafts: [String: GistDraft] = [:]
+
     private let gistProvider: GistProvider
 
     init(gistProvider: GistProvider = GitHubGistProvider.shared) {
@@ -130,6 +136,44 @@ class AppState {
     func selectFile(_ file: GistFile) {
         print("[AppState] selectFile called: \(file.filename)")
         selectedFile = file
+    }
+
+    /// Build a local stub gist and select it — no API call yet. The gist is created
+    /// on GitHub the first time the user saves content in EditorView.
+    func prepareDraftGist(filename: String, description: String, isPublic: Bool) {
+        let localId = "draft-\(UUID().uuidString)"
+        let now = Date()
+        let stubFile = GistFile(
+            filename: filename,
+            type: nil,
+            language: nil,
+            rawUrl: "",
+            size: 0,
+            content: "",
+            truncated: false
+        )
+        let stubGist = Gist(
+            id: localId,
+            description: description.isEmpty ? nil : description,
+            public: isPublic,
+            owner: nil,
+            files: [filename: stubFile],
+            createdAt: now,
+            updatedAt: now,
+            htmlUrl: ""
+        )
+
+        gists.insert(stubGist, at: 0)
+        pendingGistIds.insert(localId)
+        pendingGistDrafts[localId] = GistDraft(
+            description: description,
+            isPublic: isPublic,
+            files: [filename: GistFileDraft(content: "")]
+        )
+        newFilenames.insert(filename)
+
+        selectedGist = stubGist
+        selectedFile = stubFile
     }
 
     func createGist(draft: GistDraft) async {
@@ -221,29 +265,53 @@ class AppState {
         selectedFile = newFile
     }
 
-    /// Actually create a new file on GitHub (called during save)
+    /// Actually create a new file on GitHub (called during save).
+    /// If the parent gist is still a local draft, POST the whole gist first.
     func createFileOnGitHub(filename: String, content: String) async throws -> Gist {
         guard let gist = selectedGist else {
             throw GistProviderError.notAuthenticated
         }
 
-        let updatedGist = try await gistProvider.addFileToGist(id: gist.id, filename: filename, content: content)
+        let updatedGist: Gist
 
-        // Update local state
-        if let index = gists.firstIndex(where: { $0.id == gist.id }) {
-            gists[index] = updatedGist
+        if pendingGistIds.contains(gist.id) {
+            // Gist hasn't been created on GitHub yet — POST it now with real content
+            let draftMeta = pendingGistDrafts[gist.id]
+            let draft = GistDraft(
+                description: draftMeta?.description ?? "",
+                isPublic: draftMeta?.isPublic ?? true,
+                files: [filename: GistFileDraft(content: content)]
+            )
+            let createdGist = try await gistProvider.createGist(draft)
+
+            // Replace the local stub with the real gist
+            if let index = gists.firstIndex(where: { $0.id == gist.id }) {
+                gists[index] = createdGist
+            }
+            pendingGistIds.remove(gist.id)
+            pendingGistDrafts.removeValue(forKey: gist.id)
+            newFilenames.remove(filename)
+            GistCache.save(gists)
+
+            selectedGist = createdGist
+            if let newFile = createdGist.files[filename] {
+                selectedFile = newFile
+            }
+            return createdGist
+        } else {
+            updatedGist = try await gistProvider.addFileToGist(id: gist.id, filename: filename, content: content)
+
+            if let index = gists.firstIndex(where: { $0.id == gist.id }) {
+                gists[index] = updatedGist
+            }
+            selectedGist = updatedGist
+            newFilenames.remove(filename)
+
+            if let newFile = updatedGist.files[filename] {
+                selectedFile = newFile
+            }
+            return updatedGist
         }
-        selectedGist = updatedGist
-
-        // Remove from new files tracking
-        newFilenames.remove(filename)
-
-        // Update selected file reference
-        if let newFile = updatedGist.files[filename] {
-            selectedFile = newFile
-        }
-
-        return updatedGist
     }
 
     /// Original API-call version (kept for compatibility)
@@ -415,6 +483,21 @@ class AppState {
     }
 
     func deleteGist(_ gist: Gist) async {
+        // If this is a local draft that was never POST'd, just remove it locally
+        if pendingGistIds.contains(gist.id) {
+            gists.removeAll { $0.id == gist.id }
+            pendingGistIds.remove(gist.id)
+            pendingGistDrafts.removeValue(forKey: gist.id)
+            if let filename = gist.fileList.first?.filename {
+                newFilenames.remove(filename)
+            }
+            if selectedGist?.id == gist.id {
+                selectedGist = nil
+                selectedFile = nil
+            }
+            return
+        }
+
         isLoading = true
         errorMessage = nil
 
