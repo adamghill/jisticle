@@ -12,7 +12,7 @@ struct EditorView: View {
     @State private var isDirty = false
 
     private var theme: CodeEditor.ThemeName {
-        colorScheme == .dark ? .atelierSavannaDark : .atelierSavannaLight
+        colorScheme == .dark ? .init(rawValue: "github-dark") : .init(rawValue: "github")
     }
 
     var body: some View {
