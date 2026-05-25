@@ -6,6 +6,9 @@ protocol GistProvider {
     func fetchGist(id: String) async throws -> Gist
     func createGist(_ draft: GistDraft) async throws -> Gist
     func updateGist(id: String, _ draft: GistDraft) async throws -> Gist
+    func addFileToGist(id: String, filename: String, content: String) async throws -> Gist
+    func deleteFileFromGist(id: String, filename: String) async throws -> Gist
+    func renameFileInGist(id: String, oldFilename: String, newFilename: String) async throws -> Gist
     func deleteGist(id: String) async throws
 }
 

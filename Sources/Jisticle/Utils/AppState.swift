@@ -143,6 +143,86 @@ class AppState {
         isLoading = false
     }
 
+    func addFileToGist(filename: String, content: String) async {
+        guard let gist = selectedGist else { return }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let updatedGist = try await gistProvider.addFileToGist(id: gist.id, filename: filename, content: content)
+            if let index = gists.firstIndex(where: { $0.id == gist.id }) {
+                gists[index] = updatedGist
+            }
+            selectedGist = updatedGist
+            
+            // Auto-select the newly created file
+            if let newFile = updatedGist.files[filename] {
+                selectedFile = newFile
+            }
+        } catch let error as GistProviderError {
+            errorMessage = error.errorDescription
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+
+    func deleteFileFromGist(filename: String) async {
+        guard let gist = selectedGist else { return }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let updatedGist = try await gistProvider.deleteFileFromGist(id: gist.id, filename: filename)
+            if let index = gists.firstIndex(where: { $0.id == gist.id }) {
+                gists[index] = updatedGist
+            }
+            selectedGist = updatedGist
+            
+            // If the deleted file was selected, clear the selection
+            if selectedFile?.filename == filename {
+                selectedFile = nil
+            }
+        } catch let error as GistProviderError {
+            errorMessage = error.errorDescription
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+
+    func renameFileInGist(oldFilename: String, newFilename: String) async {
+        guard let gist = selectedGist else { return }
+
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let updatedGist = try await gistProvider.renameFileInGist(id: gist.id, oldFilename: oldFilename, newFilename: newFilename)
+            if let index = gists.firstIndex(where: { $0.id == gist.id }) {
+                gists[index] = updatedGist
+            }
+            selectedGist = updatedGist
+            
+            // Update the selected file if it was the renamed one
+            if selectedFile?.filename == oldFilename {
+                if let renamedFile = updatedGist.files[newFilename] {
+                    selectedFile = renamedFile
+                }
+            }
+        } catch let error as GistProviderError {
+            errorMessage = error.errorDescription
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+
+        isLoading = false
+    }
+
     func deleteGist(_ gist: Gist) async {
         isLoading = true
         errorMessage = nil

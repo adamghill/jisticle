@@ -2,6 +2,10 @@ import SwiftUI
 
 struct GistContentView: View {
     @Environment(AppState.self) private var appState
+    @State private var showAddFileSheet = false
+    @State private var isAddingFile = false
+    @State private var newFilename = ""
+    @FocusState private var filenameFieldFocused: Bool
 
     var body: some View {
         Group {
@@ -12,6 +16,9 @@ struct GistContentView: View {
             }
         }
         .frame(minWidth: 200)
+        .sheet(isPresented: $showAddFileSheet) {
+            AddFileSheet(isPresented: $showAddFileSheet)
+        }
     }
 
     private func fileList(gist: Gist) -> some View {
@@ -81,10 +88,56 @@ struct GistContentView: View {
                     }
                 }
             )) {
-                Section("Files") {
+                Section {
+                    // Inline add file input row
+                    if isAddingFile {
+                        HStack {
+                            TextField("filename.ext", text: $newFilename)
+                                .focused($filenameFieldFocused)
+                                .onSubmit {
+                                    confirmAddFile()
+                                }
+                                .onKeyPress(.escape) {
+                                    cancelAddFile()
+                                    return .handled
+                                }
+                            
+                            Spacer()
+                            
+                            Button("✓") {
+                                confirmAddFile()
+                            }
+                            .disabled(newFilename.isEmpty)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            
+                            Button("×") {
+                                cancelAddFile()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    
+                    // Existing files
                     ForEach(gist.fileList) { file in
                         FileRow(file: file)
                             .tag(file)
+                    }
+                } header: {
+                    HStack {
+                        Text("Files")
+                        Spacer()
+                        
+                        if !isAddingFile {
+                            Button("+") {
+                                startAddFile()
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .keyboardShortcut("n", modifiers: [.command])
+                        }
                     }
                 }
             }
@@ -115,17 +168,59 @@ struct GistContentView: View {
         formatter.timeStyle = .short
         return formatter.string(from: date)
     }
+    
+    // MARK: - Inline Add File Methods
+    
+    private func startAddFile() {
+        isAddingFile = true
+        newFilename = ""
+        filenameFieldFocused = true
+    }
+    
+    private func confirmAddFile() {
+        guard !newFilename.isEmpty else { return }
+        
+        Task {
+            await appState.addFileToGist(filename: newFilename, content: "")
+            await MainActor.run {
+                isAddingFile = false
+                newFilename = ""
+            }
+        }
+    }
+    
+    private func cancelAddFile() {
+        isAddingFile = false
+        newFilename = ""
+    }
 }
 
 struct FileRow: View {
     let file: GistFile
+    @Environment(AppState.self) private var appState
+    @State private var isRenaming = false
+    @State private var renameText = ""
+    @FocusState private var renameFieldFocused: Bool
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(file.filename)
-                    .font(.system(size: 13))
-                    .lineLimit(1)
+                if isRenaming {
+                    TextField("filename.ext", text: $renameText)
+                        .font(.system(size: 13))
+                        .focused($renameFieldFocused)
+                        .onSubmit {
+                            confirmRename()
+                        }
+                        .onKeyPress(.escape) {
+                            cancelRename()
+                            return .handled
+                        }
+                } else {
+                    Text(file.filename)
+                        .font(.system(size: 13))
+                        .lineLimit(1)
+                }
 
                 HStack {
                     Text(file.displayLanguage)
@@ -145,8 +240,55 @@ struct FileRow: View {
             Spacer()
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) {
+            if !isRenaming {
+                startRename()
+            }
+        }
+        .contextMenu {
+            Button("Rename") {
+                startRename()
+            }
+            .keyboardShortcut("r", modifiers: [.command])
+            
+            Divider()
+            
+            Button("Delete", role: .destructive) {
+                Task {
+                    await appState.deleteFileFromGist(filename: file.filename)
+                }
+            }
+            .keyboardShortcut(.delete, modifiers: [.command])
+        }
     }
-
+    
+    private func startRename() {
+        isRenaming = true
+        renameText = file.filename
+        renameFieldFocused = true
+    }
+    
+    private func confirmRename() {
+        guard !renameText.isEmpty && renameText != file.filename else {
+            cancelRename()
+            return
+        }
+        
+        Task {
+            await appState.renameFileInGist(oldFilename: file.filename, newFilename: renameText)
+            await MainActor.run {
+                isRenaming = false
+                renameText = ""
+            }
+        }
+    }
+    
+    private func cancelRename() {
+        isRenaming = false
+        renameText = ""
+    }
+    
     private func formatBytes(_ bytes: Int) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file

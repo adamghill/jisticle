@@ -142,7 +142,15 @@ class GitHubGistProvider: GistProvider, ObservableObject {
 
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
+        encoder.outputFormatting = .prettyPrinted
         let body = try encoder.encode(draft)
+
+        // Debug: Print the JSON being sent
+        if let jsonString = String(data: body, encoding: .utf8) {
+            print("=== updateGist JSON being sent ===")
+            print(jsonString)
+            print("===================================")
+        }
 
         let data = try await makeRequest(url: url, method: "PATCH", body: body)
 
@@ -154,6 +162,136 @@ class GitHubGistProvider: GistProvider, ObservableObject {
         } catch {
             throw GistProviderError.decodingError(error)
         }
+    }
+
+    func addFileToGist(id: String, filename: String, content: String) async throws -> Gist {
+        // First, fetch the current gist to get existing files
+        let currentGist = try await fetchGist(id: id)
+        
+        print("=== addFileToGist Debug ===")
+        print("Current gist ID: \(currentGist.id)")
+        print("Current files count: \(currentGist.files.count)")
+        print("Current files: \(currentGist.files.keys)")
+        
+        // Create a new files dictionary with existing files plus the new file
+        var updatedFiles = currentGist.files
+        updatedFiles[filename] = GistFile(
+            filename: filename,
+            type: nil,
+            language: nil,
+            rawUrl: "",
+            size: content.count,
+            content: content,
+            truncated: false
+        )
+        
+        print("Updated files count: \(updatedFiles.count)")
+        print("Updated files: \(updatedFiles.keys)")
+        
+        // Create a draft with all existing files plus the new one
+        let filesDict = Dictionary(uniqueKeysWithValues: updatedFiles.map { key, value in
+            let content = value.content ?? ""
+            print("File: \(key) -> content length: \(content.count)")
+            return (key, GistFileDraft(content: content))
+        })
+        
+        print("Files dict count: \(filesDict.count)")
+        
+        let draft = GistDraft(
+            description: currentGist.description ?? "",
+            isPublic: currentGist.public,
+            files: filesDict
+        )
+        
+        print("Draft files count: \(draft.files.count)")
+        
+        // Update the gist with the new file
+        return try await updateGist(id: id, draft)
+    }
+
+    func deleteFileFromGist(id: String, filename: String) async throws -> Gist {
+        // First, fetch the current gist to get existing files
+        let currentGist = try await fetchGist(id: id)
+        
+        print("=== deleteFileFromGist Debug ===")
+        print("Current gist ID: \(currentGist.id)")
+        print("Current files count: \(currentGist.files.count)")
+        print("Deleting file: \(filename)")
+        
+        // Remove the file from the dictionary
+        var updatedFiles = currentGist.files
+        updatedFiles.removeValue(forKey: filename)
+        
+        print("Updated files count: \(updatedFiles.count)")
+        
+        // Create a draft with all remaining files
+        let filesDict = Dictionary(uniqueKeysWithValues: updatedFiles.map { key, value in
+            let content = value.content ?? ""
+            print("Remaining file: \(key) -> content length: \(content.count)")
+            return (key, GistFileDraft(content: content))
+        })
+        
+        let draft = GistDraft(
+            description: currentGist.description ?? "",
+            isPublic: currentGist.public,
+            files: filesDict
+        )
+        
+        print("Draft files count: \(draft.files.count)")
+        
+        // Update the gist without the deleted file
+        return try await updateGist(id: id, draft)
+    }
+
+    func renameFileInGist(id: String, oldFilename: String, newFilename: String) async throws -> Gist {
+        // First, fetch the current gist to get existing files
+        let currentGist = try await fetchGist(id: id)
+        
+        print("=== renameFileInGist Debug ===")
+        print("Current gist ID: \(currentGist.id)")
+        print("Current files count: \(currentGist.files.count)")
+        print("Renaming file: \(oldFilename) -> \(newFilename)")
+        
+        // Get the file to rename
+        guard let fileToRename = currentGist.files[oldFilename] else {
+            throw GistProviderError.apiError(statusCode: 404, message: "File not found: \(oldFilename)")
+        }
+        
+        // Create updated files dictionary
+        var updatedFiles = currentGist.files
+        updatedFiles.removeValue(forKey: oldFilename)
+        
+        // Add the renamed file
+        let renamedFile = GistFile(
+            filename: newFilename,
+            type: fileToRename.type,
+            language: fileToRename.language,
+            rawUrl: fileToRename.rawUrl,
+            size: fileToRename.size,
+            content: fileToRename.content,
+            truncated: fileToRename.truncated
+        )
+        updatedFiles[newFilename] = renamedFile
+        
+        print("Updated files count: \(updatedFiles.count)")
+        
+        // Create a draft with all files including the renamed one
+        let filesDict = Dictionary(uniqueKeysWithValues: updatedFiles.map { key, value in
+            let content = value.content ?? ""
+            print("File: \(key) -> content length: \(content.count)")
+            return (key, GistFileDraft(content: content))
+        })
+        
+        let draft = GistDraft(
+            description: currentGist.description ?? "",
+            isPublic: currentGist.public,
+            files: filesDict
+        )
+        
+        print("Draft files count: \(draft.files.count)")
+        
+        // Update the gist with the renamed file
+        return try await updateGist(id: id, draft)
     }
 
     func deleteGist(id: String) async throws {
