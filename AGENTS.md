@@ -31,7 +31,9 @@ Sources/Jisticle/
 │   ├── NewGistSheet.swift     # Create new gist modal
 │   ├── RootView.swift         # App root view
 │   └── SidebarView.swift      # Searchable gist list sidebar
-└── Utils/                     # Utility extensions
+└── Utils/
+    ├── AppState.swift         # @Observable app state (selection, gist list, sorting)
+    └── View+PointingCursor.swift  # Cursor style extension
 ```
 
 ### Key Dependencies
@@ -63,11 +65,15 @@ just build-release [version]
 The app uses a protocol-based abstraction for gist operations to enable future multi-provider support:
 
 ```swift
+@MainActor
 protocol GistProvider {
-    func fetchGists() async throws -> [Gist]
+    func listGists() async throws -> [Gist]
     func fetchGist(id: String) async throws -> Gist
-    func createGist(...) async throws -> Gist
-    func updateGist(...) async throws -> Gist
+    func createGist(_ draft: GistDraft) async throws -> Gist
+    func updateGist(id: String, _ draft: GistDraft) async throws -> Gist
+    func addFileToGist(id: String, filename: String, content: String) async throws -> Gist
+    func deleteFileFromGist(id: String, filename: String) async throws -> Gist
+    func renameFileInGist(id: String, oldFilename: String, newFilename: String) async throws -> Gist
     func deleteGist(id: String) async throws
 }
 ```
@@ -80,10 +86,10 @@ protocol GistProvider {
 5. Token used for all subsequent GitHub API calls
 
 ### State Management
-- `@AppStorage` for persistent user preferences
-- `@StateObject` for view-owned view models
+- `AppState` — `@Observable` class holding selection, gist list, sorting, and draft state
+- `AuthService.shared` — `ObservableObject` singleton for auth state
 - `GistCache` for temporary in-memory caching
-- `AuthService.shared` singleton for auth state
+- `@AppStorage` for persistent user preferences
 
 ## File Naming Conventions
 
@@ -93,7 +99,7 @@ protocol GistProvider {
 
 ## Testing
 
-- Test target: `JisticleTests`
+- Test target: `JisticleTests` (directory: `Tests/GisticleTests/`)
 - Run with: `swift test` or `just test`
 
 ## Notes for Agents

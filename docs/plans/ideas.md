@@ -1,0 +1,13 @@
+- app icon
+- drag and drop file(s) from finder to add it to a gist
+- markdown preview
+- browse other user's gists
+- search for other user's gists
+- other providers (https://github.com/Esl1h/gist-sync for inspiration?)
+  - gitlab snippets
+  - bitbucket snippets
+- settings
+  - theme support for highlighting
+  - font size
+  - line wrap
+- get/store gists in S3 (export/backup?)

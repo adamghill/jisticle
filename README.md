@@ -1,8 +1,8 @@
-# Jisticle 📄
+# Jisticle
 
 > The native macOS client for Gists because GitHub seems to have forgotten that they exist.
 
-Jisticle is a native macOS Gist client built with SwiftUI. It's fast, it's clean, and the UI was updated within the last decade. Hopefully it helps managing your Gists feel natural and delightful.
+The goal is for Jisticle to be fast, intuitive, and for the UI to have been updated within the last decade. Hopefully it helps creating and managing your personal Gists.
 
 ## ✨ Features
 
