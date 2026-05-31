@@ -4,6 +4,7 @@ struct GistContentView: View {
     @Environment(AppState.self) private var appState
     @State private var isAddingFile = false
     @State private var newFilename = ""
+    @State private var isDropTarget = false
     @FocusState private var filenameFieldFocused: Bool
 
     var body: some View {
@@ -149,6 +150,23 @@ struct GistContentView: View {
             }
             .listStyle(.plain)
             .environment(\.defaultMinListRowHeight, 30)
+            .dropDestination(for: URL.self) { urls, location in
+                Task {
+                    for url in urls {
+                        await appState.addFileFromDisk(url: url)
+                    }
+                }
+                return true
+            } isTargeted: { isTargeted in
+                isDropTarget = isTargeted
+            }
+            .overlay {
+                if isDropTarget {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.accentColor, lineWidth: 2)
+                        .background(Color.accentColor.opacity(0.1))
+                }
+            }
         }
     }
 

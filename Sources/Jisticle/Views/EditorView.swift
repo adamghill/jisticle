@@ -28,7 +28,12 @@ struct EditorView: View {
             print("[EditorView] selectedFile changed to: \(newFile?.filename ?? "nil")")
             currentContent = newFile?.content ?? ""
             currentLanguage = language(for: newFile)
-            isDirty = false
+            // Mark as dirty if this is a new file with content (e.g., from drag-and-drop)
+            if let file = newFile, appState.newFilenames.contains(file.filename), !(file.content?.isEmpty ?? true) {
+                isDirty = true
+            } else {
+                isDirty = false
+            }
         }
         .onChange(of: appState.selectedGist) { _, newGist in
             print("[EditorView] selectedGist changed to: \(newGist?.id ?? "nil")")
@@ -109,7 +114,12 @@ struct EditorView: View {
             .onAppear {
                 currentContent = file.content ?? ""
                 currentLanguage = language(for: file)
-                isDirty = false
+                // Mark as dirty if this is a new file with content (e.g., from drag-and-drop)
+                if appState.newFilenames.contains(file.filename), !(file.content?.isEmpty ?? true) {
+                    isDirty = true
+                } else {
+                    isDirty = false
+                }
             }
         }
     }

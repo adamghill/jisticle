@@ -341,6 +341,80 @@ class AppState {
         isLoading = false
     }
 
+    /// Add a file with content from disk (used for drag-and-drop from Finder)
+    func addFileFromDisk(url: URL) async {
+        guard let gist = selectedGist else { return }
+
+        let filename = url.lastPathComponent
+
+        // Avoid duplicates
+        let finalFilename: String
+        if gist.files[filename] != nil {
+            let base = (filename as NSString).deletingPathExtension
+            let ext = (filename as NSString).pathExtension
+            let suffix = ext.isEmpty ? " (copy)" : " (copy).\(ext)"
+            finalFilename = base + suffix
+        } else {
+            finalFilename = filename
+        }
+
+        // Read file content asynchronously
+        let content: String
+        do {
+            content = try await Task.detached(priority: .userInitiated) {
+                try String(contentsOf: url, encoding: .utf8)
+            }.value
+        } catch {
+            // Try with lossy conversion for non-UTF8 files
+            guard let data = try? Data(contentsOf: url),
+                  let string = String(data: data, encoding: .utf8) else {
+                await MainActor.run {
+                    errorMessage = "Could not read file: \(filename)"
+                }
+                return
+            }
+            content = string
+        }
+
+        // Update UI on main actor
+        await MainActor.run {
+            let newFile = GistFile(
+                filename: finalFilename,
+                type: nil,
+                language: nil,
+                rawUrl: "",
+                size: content.utf8.count,
+                content: content,
+                truncated: false
+            )
+
+            var updatedFiles = gist.files
+            updatedFiles[finalFilename] = newFile
+
+            let updatedGist = Gist(
+                id: gist.id,
+                description: gist.description,
+                public: gist.public,
+                owner: gist.owner,
+                files: updatedFiles,
+                createdAt: gist.createdAt,
+                updatedAt: gist.updatedAt,
+                htmlUrl: gist.htmlUrl,
+                stargazerCount: gist.stargazerCount,
+                forkCount: gist.forkCount,
+                commentCount: gist.commentCount,
+                revisionCount: gist.revisionCount
+            )
+
+            if let index = gists.firstIndex(where: { $0.id == gist.id }) {
+                gists[index] = updatedGist
+            }
+            selectedGist = updatedGist
+            newFilenames.insert(finalFilename)
+            selectedFile = newFile
+        }
+    }
+
     func deleteFileFromGist(filename: String) async {
         guard let gist = selectedGist else { return }
 
