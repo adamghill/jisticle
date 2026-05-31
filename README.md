@@ -15,6 +15,7 @@ The goal is for Jisticle to be fast, intuitive, and for the UI to have been upda
 * 💾 **Smart Caching** - Gists are cached locally for instant access even when you're offline
 * 🔐 **Secure GitHub Authentication** - Uses GitHub's Device Flow OAuth, no client secrets required
 * 🔒 **Keychain Security** - Your GitHub token is stored securely in macOS Keychain
+* 📍 **Drag and Drop** - Drag and drop file(s) from finder to add it to a gist
 
 <!-- Screenshots will go here -->
 <table>

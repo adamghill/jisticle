@@ -1,5 +1,4 @@
 - app icon
-- drag and drop file(s) from finder to add it to a gist
 - markdown preview
 - browse other user's gists
 - search for other user's gists
