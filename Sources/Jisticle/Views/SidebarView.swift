@@ -180,7 +180,7 @@ struct GistRow: View {
                 if !gist.public {
                     Image(systemName: "lock.fill")
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.orange)
                 }
 
                 Text(gist.displayTitle)
