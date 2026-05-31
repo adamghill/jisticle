@@ -9,6 +9,9 @@ packages:
   KeychainAccess:
     url: https://github.com/kishikawakatsumi/KeychainAccess.git
     from: 4.2.2
+  MarkdownUI:
+    url: https://github.com/gonzalezreal/swift-markdown-ui
+    from: 2.1.0
 
 targets:
   Jisticle:
@@ -35,3 +38,5 @@ targets:
         product: CodeEditor
       - package: KeychainAccess
         product: KeychainAccess
+      - package: MarkdownUI
+        product: MarkdownUI

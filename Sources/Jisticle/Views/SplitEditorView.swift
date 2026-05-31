@@ -1,131 +1,84 @@
 import CodeEditor
 import SwiftUI
 
-@MainActor
-struct EditorView: View {
+struct SplitEditorView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) private var colorScheme
-
+    @State private var splitPosition: CGFloat = 0.5
+    
     @AppStorage("editorFontSize") private var fontSize = Int(NSFont.monospacedSystemFont(ofSize: 0, weight: .regular).pointSize)
     @State private var currentContent: String = ""
     @State private var currentLanguage: CodeEditor.Language = .init(rawValue: "plaintext")
     @State private var isDirty = false
-
+    
     private var theme: CodeEditor.ThemeName {
         colorScheme == .dark ? .init(rawValue: "github-dark") : .init(rawValue: "github")
     }
-
+    
     var body: some View {
-        Group {
-            if let gist = appState.selectedGist, let file = appState.selectedFile {
-                editorContent(gist: gist, file: file)
-            } else {
-                emptyState
+        HSplitView {
+            // Editor pane
+            VStack(spacing: 0) {
+                CodeEditor(
+                    source: .init(
+                        get: { currentContent },
+                        set: { newValue in
+                            currentContent = newValue
+                            isDirty = true
+                        }
+                    ),
+                    language: currentLanguage,
+                    theme: theme,
+                    fontSize: .init(get: { CGFloat(fontSize) }, set: { fontSize = Int($0) }),
+                    flags: [.editable, .selectable, .smartIndent]
+                )
             }
+            .frame(minWidth: 200)
+            
+            // Preview pane
+            VStack(spacing: 0) {
+                // previewHeader
+                // Divider()
+                MarkdownPreviewView(content: currentContent)
+            }
+            .frame(minWidth: 200)
         }
-        .frame(minWidth: 400)
+        .onAppear {
+            loadContent()
+        }
         .onChange(of: appState.selectedFile) { _, newFile in
-            print("[EditorView] selectedFile changed to: \(newFile?.filename ?? "nil")")
-            currentContent = newFile?.content ?? ""
-            currentLanguage = language(for: newFile)
-            // Mark as dirty if this is a new file with content (e.g., from drag-and-drop)
-            if let file = newFile, appState.newFilenames.contains(file.filename), !(file.content?.isEmpty ?? true) {
-                isDirty = true
-            } else {
-                isDirty = false
-            }
+            loadContent()
         }
         .onChange(of: appState.selectedGist) { _, newGist in
-            print("[EditorView] selectedGist changed to: \(newGist?.id ?? "nil")")
-            // Re-sync selectedFile to new gist's file instance
-            if let filename = appState.selectedFile?.filename,
-               let updatedFile = newGist?.files[filename] {
-                print("[EditorView] Re-syncing selectedFile to new instance")
-                appState.selectedFile = updatedFile
-            }
+            syncSelectedFileToNewGist()
         }
     }
-
-    private func editorContent(gist: Gist, file: GistFile) -> some View {
-        VStack(spacing: 0) {
-            // Toolbar
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(alignment: .top, spacing: 6) {
-                        if let url = URL(string: file.rawUrl), !file.rawUrl.isEmpty {
-                            Link(destination: url) {
-                                Text(file.filename)
-                                    .font(.headline)
-                            }
-                            .pointingCursor()
-                        } else {
-                            Text(file.filename)
-                                .font(.headline)
-                        }
-
-                        Text(file.displayLanguage)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 2)
-                            .background(.secondary.opacity(0.1))
-                            .cornerRadius(4)
-                            .padding(.top, 2)
-                    }
-
-                    Text(formatBytes(file.size))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                if isDirty {
-                    Text("Modified")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-
-                Button("Save") {
-                    saveChanges()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!isDirty)
-                .keyboardShortcut("s", modifiers: .command)
-            }
-            .padding()
-
-            Divider()
-
-            // Conditional content based on file type
-            Group {
-                if appState.isMarkdownFile {
-                    SplitEditorView()
-                } else {
-                    codeEditorView(file: file)
-                }
-            }
+    
+    private func loadContent() {
+        guard let file = appState.selectedFile else { return }
+        
+        currentContent = file.content ?? ""
+        currentLanguage = language(for: file)
+        
+        if appState.newFilenames.contains(file.filename), !(file.content?.isEmpty ?? true) {
+            isDirty = true
+        } else {
+            isDirty = false
         }
     }
-
-    private var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 48))
-                .foregroundStyle(.secondary)
-
-            Text("Select a file to view and edit")
-                .foregroundStyle(.secondary)
-        }
+    
+    private func syncSelectedFileToNewGist() {
+        guard let filename = appState.selectedFile?.filename,
+              let updatedFile = appState.selectedGist?.files[filename] else { return }
+        
+        appState.selectedFile = updatedFile
     }
-
+    
     private func saveChanges() {
         guard let gist = appState.selectedGist, let file = appState.selectedFile else { return }
-
+        
         Task {
-            // Check if this is a new file (not yet on GitHub)
             if appState.newFilenames.contains(file.filename) {
-                // Create the file on GitHub with content
                 do {
                     _ = try await appState.createFileOnGitHub(filename: file.filename, content: currentContent)
                     isDirty = false
@@ -133,7 +86,6 @@ struct EditorView: View {
                     appState.errorMessage = "Failed to create file: \(error.localizedDescription)"
                 }
             } else {
-                // Regular update for existing files
                 var files: [String: GistFileDraft] = [:]
                 for gistFile in gist.fileList {
                     if gistFile.id == file.id {
@@ -142,25 +94,24 @@ struct EditorView: View {
                         files[gistFile.filename] = GistFileDraft(content: gistFile.content ?? "")
                     }
                 }
-
+                
                 let draft = GistDraft(
                     description: gist.displayTitle,
                     isPublic: gist.public,
                     files: files
                 )
-
+                
                 await appState.updateGist(draft: draft)
                 isDirty = false
             }
         }
     }
-
+    
     // Maps GitHub languages to ZeeZide/CodeEditor languages
-    // ZeeZide/CodeEditor supports 180+ languages via highlight.js
     private func language(for file: GistFile?) -> CodeEditor.Language {
         guard let file else { return .init(rawValue: "plaintext") }
         let ext = (file.filename as NSString).pathExtension.lowercased()
-
+        
         switch ext {
         case "swift":                           return .swift
         case "py":                              return .python
@@ -203,7 +154,7 @@ struct EditorView: View {
         case "vim":                             return .init(rawValue: "vim")
         default:                                break
         }
-
+        
         // Fallback: use the language name reported by the GitHub API
         switch file.language?.lowercased() {
         case "swift":                           return .swift
@@ -242,44 +193,16 @@ struct EditorView: View {
         default:                                return .init(rawValue: "plaintext")
         }
     }
-
+    
     private func formatBytes(_ bytes: Int) -> String {
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
         return formatter.string(fromByteCount: Int64(bytes))
     }
-    
-    // MARK: - View Components
-    
-    @ViewBuilder
-    private func codeEditorView(file: GistFile) -> some View {
-        CodeEditor(
-            source: .init(
-                get: { currentContent },
-                set: { newValue in
-                    currentContent = newValue
-                    isDirty = true
-                }
-            ),
-            language: currentLanguage,
-            theme: theme,
-            fontSize: .init(get: { CGFloat(fontSize) }, set: { fontSize = Int($0) }),
-            flags: [.editable, .selectable, .smartIndent]
-        )
-        .onAppear {
-            currentContent = file.content ?? ""
-            currentLanguage = language(for: file)
-            // Mark as dirty if this is a new file with content (e.g., from drag-and-drop)
-            if appState.newFilenames.contains(file.filename), !(file.content?.isEmpty ?? true) {
-                isDirty = true
-            } else {
-                isDirty = false
-            }
-        }
-    }
 }
 
 #Preview {
-    EditorView()
+    SplitEditorView()
         .environment(AppState())
+        .frame(width: 800, height: 600)
 }

@@ -11,6 +11,7 @@ enum GistSortOrder: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+
 private extension Array where Element == Gist {
     func sorted(using order: GistSortOrder) -> [Gist] {
         switch order {
@@ -55,6 +56,13 @@ class AppState {
     init(gistProvider: GistProvider = GitHubGistProvider.shared) {
         self.gistProvider = gistProvider
         self.gists = GistCache.load() ?? []
+    }
+    
+    /// Check if the selected file is a markdown file
+    var isMarkdownFile: Bool {
+        guard let file = selectedFile else { return false }
+        let ext = (file.filename as NSString).pathExtension.lowercased()
+        return ext == "md" || ext == "markdown"
     }
 
     var filteredGists: [Gist] {
