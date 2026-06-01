@@ -1,5 +1,4 @@
 - app icon
-- markdown preview
 - browse other user's gists
 - search for other user's gists
 - other providers (https://github.com/Esl1h/gist-sync for inspiration?)

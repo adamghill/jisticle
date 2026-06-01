@@ -1,3 +1,8 @@
+## 0.3.0
+
+- Markdown preview
+- Only enable save button when content is changed
+
 ## 0.2.0
 
 - Drag and drop file(s) from finder to add it to a gist
