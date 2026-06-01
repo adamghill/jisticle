@@ -11,7 +11,6 @@ struct MarkdownEditorSubview: View {
     let onContentChange: (String) -> Void
     
     @State private var text: String = ""
-    @State private var contentChangeTask: Task<Void, Never>?
     
     init(
         gist: Gist,
@@ -41,15 +40,7 @@ struct MarkdownEditorSubview: View {
             flags: [.editable, .selectable, .smartIndent]
         )
         .onChange(of: text) { _, newValue in
-            // Debounce content changes to reduce flickering during typing
-            contentChangeTask?.cancel()
-            contentChangeTask = Task {
-                try? await Task.sleep(for: .milliseconds(16))
-                guard !Task.isCancelled else { return }
-                await MainActor.run {
-                    onContentChange(newValue)
-                }
-            }
+            onContentChange(newValue)
         }
         .onChange(of: initialContent) { _, newValue in
             // Sync when parent loads new content (e.g., file switch)
