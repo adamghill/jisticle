@@ -8,40 +8,68 @@ struct SplitEditorView: View {
     
     @AppStorage("editorFontSize") private var fontSize = Int(NSFont.monospacedSystemFont(ofSize: 0, weight: .regular).pointSize)
     @State private var currentContent: String = ""
+    @State private var debouncedPreviewContent: String = ""
     @State private var currentLanguage: CodeEditor.Language = .init(rawValue: "plaintext")
     @State private var isDirty = false
+    @State private var debounceTask: Task<Void, Never>?
+    @State private var cachedTheme: CodeEditor.ThemeName?
+    @State private var lastColorScheme: ColorScheme?
+    @State private var languageDebounceTask: Task<Void, Never>?
     
     private var theme: CodeEditor.ThemeName {
-        colorScheme == .dark ? .init(rawValue: "github-dark") : .init(rawValue: "github")
+        if let cachedTheme, lastColorScheme == colorScheme {
+            return cachedTheme
+        }
+        let newTheme: CodeEditor.ThemeName = colorScheme == .dark ? .init(rawValue: "github-dark") : .init(rawValue: "github")
+        cachedTheme = newTheme
+        lastColorScheme = colorScheme
+        return newTheme
     }
     
     var body: some View {
         HSplitView {
-            // Editor pane
+            // Editor pane - isolated subview prevents cursor jumping on preview updates
             VStack(spacing: 0) {
-                CodeEditor(
-                    source: .init(
-                        get: { currentContent },
-                        set: { newValue in
-                            currentContent = newValue
-                            isDirty = true
+                if let gist = appState.selectedGist, let file = appState.selectedFile {
+                    MarkdownEditorSubview(
+                        gist: gist,
+                        file: file,
+                        language: currentLanguage,
+                        theme: theme,
+                        fontSize: .init(get: { CGFloat(fontSize) }, set: { fontSize = Int($0) }),
+                        initialContent: currentContent,
+                        onContentChange: { newValue in
+                            // Reduce debounce for more responsive preview updates
+                            debounceTask?.cancel()
+                            debounceTask = Task {
+                                try? await Task.sleep(for: .milliseconds(50))
+                                guard !Task.isCancelled else { return }
+                                await MainActor.run {
+                                    debouncedPreviewContent = newValue
+                                }
+                            }
+                            
+                            let key = "\(gist.id)/\(file.filename)"
+                            if newValue == (file.content ?? "") {
+                                appState.pendingEdits.removeValue(forKey: key)
+                                appState.editedKeys.remove(key)
+                            } else {
+                                appState.pendingEdits[key] = newValue
+                                appState.editedKeys.insert(key)
+                            }
                         }
-                    ),
-                    language: currentLanguage,
-                    theme: theme,
-                    fontSize: .init(get: { CGFloat(fontSize) }, set: { fontSize = Int($0) }),
-                    flags: [.editable, .selectable, .smartIndent]
-                )
+                    )
+                    .id("editor-\(gist.id)-\(file.filename)-\(currentLanguage.rawValue)")
+                }
             }
             .frame(minWidth: 200)
             
             // Preview pane
             VStack(spacing: 0) {
-                // previewHeader
-                // Divider()
-                MarkdownPreviewView(content: currentContent)
+                MarkdownPreviewView(content: debouncedPreviewContent)
             }
             .frame(minWidth: 200)
+            .id("preview-\(appState.selectedGist?.id ?? "")-\(appState.selectedFile?.filename ?? "")")
         }
         .onAppear {
             loadContent()
@@ -57,13 +85,35 @@ struct SplitEditorView: View {
     private func loadContent() {
         guard let file = appState.selectedFile else { return }
         
-        currentContent = file.content ?? ""
-        currentLanguage = language(for: file)
+        updateLanguage(language(for: file))
         
-        if appState.newFilenames.contains(file.filename), !(file.content?.isEmpty ?? true) {
-            isDirty = true
-        } else {
-            isDirty = false
+        if let gist = appState.selectedGist {
+            let key = "\(gist.id)/\(file.filename)"
+            if let pending = appState.pendingEdits[key] {
+                currentContent = pending
+                debouncedPreviewContent = pending
+                appState.editedKeys.insert(key)
+                isDirty = true
+                return
+            }
+        }
+        
+        let content = file.content ?? ""
+        currentContent = content
+        debouncedPreviewContent = content
+        isDirty = appState.newFilenames.contains(file.filename) && !(file.content?.isEmpty ?? true)
+    }
+    
+    private func updateLanguage(_ newLanguage: CodeEditor.Language) {
+        guard newLanguage != currentLanguage else { return }
+        
+        languageDebounceTask?.cancel()
+        languageDebounceTask = Task {
+            try? await Task.sleep(for: .milliseconds(100))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                currentLanguage = newLanguage
+            }
         }
     }
     
@@ -102,6 +152,9 @@ struct SplitEditorView: View {
                 )
                 
                 await appState.updateGist(draft: draft)
+                let saveKey = "\(gist.id)/\(file.filename)"
+                appState.pendingEdits.removeValue(forKey: saveKey)
+                appState.editedKeys.remove(saveKey)
                 isDirty = false
             }
         }

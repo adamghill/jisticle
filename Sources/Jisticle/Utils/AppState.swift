@@ -51,6 +51,12 @@ class AppState {
     /// Pending draft metadata keyed by local stub gist ID
     var pendingGistDrafts: [String: GistDraft] = [:]
 
+    /// Unsaved in-progress edits keyed by "gistId/filename"
+    var pendingEdits: [String: String] = [:]
+
+    /// Keys with active pending edits — used to reliably drive dirty state observation
+    var editedKeys: Set<String> = []
+
     private let gistProvider: GistProvider
 
     init(gistProvider: GistProvider = GitHubGistProvider.shared) {

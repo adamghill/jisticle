@@ -9,10 +9,22 @@ struct EditorView: View {
     @AppStorage("editorFontSize") private var fontSize = Int(NSFont.monospacedSystemFont(ofSize: 0, weight: .regular).pointSize)
     @State private var currentContent: String = ""
     @State private var currentLanguage: CodeEditor.Language = .init(rawValue: "plaintext")
-    @State private var isDirty = false
+    @State private var cachedTheme: CodeEditor.ThemeName?
+    @State private var lastColorScheme: ColorScheme?
+    private var isDirty: Bool {
+        guard let gist = appState.selectedGist, let file = appState.selectedFile else { return false }
+        return appState.editedKeys.contains("\(gist.id)/\(file.filename)")
+            || (appState.newFilenames.contains(file.filename) && !(file.content?.isEmpty ?? true))
+    }
 
     private var theme: CodeEditor.ThemeName {
-        colorScheme == .dark ? .init(rawValue: "github-dark") : .init(rawValue: "github")
+        if let cachedTheme, lastColorScheme == colorScheme {
+            return cachedTheme
+        }
+        let newTheme: CodeEditor.ThemeName = colorScheme == .dark ? .init(rawValue: "github-dark") : .init(rawValue: "github")
+        cachedTheme = newTheme
+        lastColorScheme = colorScheme
+        return newTheme
     }
 
     var body: some View {
@@ -26,14 +38,17 @@ struct EditorView: View {
         .frame(minWidth: 400)
         .onChange(of: appState.selectedFile) { _, newFile in
             print("[EditorView] selectedFile changed to: \(newFile?.filename ?? "nil")")
-            currentContent = newFile?.content ?? ""
-            currentLanguage = language(for: newFile)
-            // Mark as dirty if this is a new file with content (e.g., from drag-and-drop)
-            if let file = newFile, appState.newFilenames.contains(file.filename), !(file.content?.isEmpty ?? true) {
-                isDirty = true
+            if let file = newFile, let gist = appState.selectedGist {
+                let key = "\(gist.id)/\(file.filename)"
+                if let pending = appState.pendingEdits[key] {
+                    currentContent = pending
+                } else {
+                    currentContent = file.content ?? ""
+                }
             } else {
-                isDirty = false
+                currentContent = newFile?.content ?? ""
             }
+            currentLanguage = language(for: newFile)
         }
         .onChange(of: appState.selectedGist) { _, newGist in
             print("[EditorView] selectedGist changed to: \(newGist?.id ?? "nil")")
@@ -128,7 +143,6 @@ struct EditorView: View {
                 // Create the file on GitHub with content
                 do {
                     _ = try await appState.createFileOnGitHub(filename: file.filename, content: currentContent)
-                    isDirty = false
                 } catch {
                     appState.errorMessage = "Failed to create file: \(error.localizedDescription)"
                 }
@@ -150,7 +164,9 @@ struct EditorView: View {
                 )
 
                 await appState.updateGist(draft: draft)
-                isDirty = false
+                let saveKey = "\(gist.id)/\(file.filename)"
+                appState.pendingEdits.removeValue(forKey: saveKey)
+                appState.editedKeys.remove(saveKey)
             }
         }
     }
@@ -258,7 +274,16 @@ struct EditorView: View {
                 get: { currentContent },
                 set: { newValue in
                     currentContent = newValue
-                    isDirty = true
+                    if let gist = appState.selectedGist, let file = appState.selectedFile {
+                        let key = "\(gist.id)/\(file.filename)"
+                        if newValue == (file.content ?? "") {
+                            appState.pendingEdits.removeValue(forKey: key)
+                            appState.editedKeys.remove(key)
+                        } else {
+                            appState.pendingEdits[key] = newValue
+                            appState.editedKeys.insert(key)
+                        }
+                    }
                 }
             ),
             language: currentLanguage,
@@ -267,14 +292,17 @@ struct EditorView: View {
             flags: [.editable, .selectable, .smartIndent]
         )
         .onAppear {
-            currentContent = file.content ?? ""
-            currentLanguage = language(for: file)
-            // Mark as dirty if this is a new file with content (e.g., from drag-and-drop)
-            if appState.newFilenames.contains(file.filename), !(file.content?.isEmpty ?? true) {
-                isDirty = true
+            if let gist = appState.selectedGist {
+                let key = "\(gist.id)/\(file.filename)"
+                if let pending = appState.pendingEdits[key] {
+                    currentContent = pending
+                } else {
+                    currentContent = file.content ?? ""
+                }
             } else {
-                isDirty = false
+                currentContent = file.content ?? ""
             }
+            currentLanguage = language(for: file)
         }
     }
 }
