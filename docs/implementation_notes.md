@@ -18,21 +18,27 @@
 - More complex setup with Info.plist URL types
 - Better UX (automatic redirect)
 
-### 2. Code Editor: CodeEditorView vs CodeEditor (ZeeZide)
+### 2. Code Editor Evolution
 
-**Decision:** Used `mchakravarty/CodeEditorView` (same as sqliteo app).
+**Initial commit:** `mchakravarty/CodeEditorView` was added but immediately replaced.
 
-**Trade-offs:**
+**v0.1.0 - v0.2.0:** Used `ZeeZide/CodeEditor` (Highlightr-based).
+- ✅ Easy integration
+- ✅ 180+ languages via highlight.js
+- ❌ JavaScriptCore-based (not native TextKit 2)
+- ❌ Performance issues with large files
+
+**Post-v0.2.0 attempt:** `CodeEditSourceEditor` (Tree-sitter based).
+- ✅ Tree-sitter incremental parsing - no flicker
+- ✅ 30+ languages via CodeEditLanguages
+- ❌ Markdown language support broken (non-standard capture names)
+- ❌ Full migration completed but abandoned due to markdown issues
+
+**Current (post-v0.2.0, after CodeEditSourceEditor attempt):** `STTextView + STTextView-Plugin-Neon` (Tree-sitter based).
 - ✅ Native TextKit 2 based - better macOS integration
 - ✅ More native-feeling editor (Xcode-inspired)
-- ✅ Consistent with sqliteo app architecture
-- ❌ Slightly more complex integration
-- ❌ Manual theme configuration required
-
-**Alternative considered:** `ZeeZide/CodeEditor`
-- Easier one-liner integration
-- Built-in theme support via Highlightr
-- Less native macOS feel
+- ✅ Tree-sitter syntax highlighting with proper markdown support
+- ❌ More complex integration with Auto Layout constraints
 
 ### 3. Architecture: Protocol-Based Service Layer
 
