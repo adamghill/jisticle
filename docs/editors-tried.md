@@ -46,13 +46,8 @@ This document tracks the different code editor approaches tried during Jisticle'
 - `Package.swift` dependency: `.package(url: "https://github.com/ZeeZide/CodeEditor.git", from: "1.0.0")`
 
 **Why replaced:**
-- Highlightr/JS-based highlighting had performance issues
+- Highlightr/JS-based highlighting was on the whole file, so every keystroke triggered a full re-highlight and caused a flicker
 - Tree-sitter based alternatives offer better native integration
-
-**Evidence:**
-- v0.1.0 and v0.2.0 `Package.swift` both use ZeeZide/CodeEditor
-- CHANGELOG.md for v0.1.0 mentions "Syntax highlighting" (referring to this)
-- Current `HEAD` (but not yet committed) has replaced this with STTextView
 
 **Links:**
 - Repository: https://github.com/ZeeZide/CodeEditor
@@ -70,7 +65,6 @@ This document tracks the different code editor approaches tried during Jisticle'
 - Actively maintained, used in CodeEdit macOS app
 
 **Usage:**
-- Tried after ZeeZide/CodeEditor to fix flickering issues
 - `Package.swift` dependencies: `CodeEditSourceEditor` + `CodeEditLanguages`
 - Uses `SourceEditor($text, language:, configuration:, state:)` SwiftUI API
 
@@ -78,12 +72,9 @@ This document tracks the different code editor approaches tried during Jisticle'
 - Markdown language support was broken/missing
 - CodeEditLanguages uses non-standard capture names that didn't match markdown content
 - Couldn't properly highlight markdown headings, code blocks, etc.
-- Migration was fully implemented but reverted due to markdown issues
-
-**Evidence:**
-- Never committed to git (remained in working directory)
-- Full migration completed: Package.swift, EditorView.swift, SplitEditorView.swift, MarkdownEditorSubview.swift
-- Build succeeded but markdown editing was non-functional
+- Made the application much bigger to download
+- Migration was fully implemented but reverted
+- App crashes with certain markdown content
 
 **Links:**
 - Repository: https://github.com/CodeEditApp/CodeEditSourceEditor
@@ -91,53 +82,57 @@ This document tracks the different code editor approaches tried during Jisticle'
 
 ---
 
-## 4. STTextView + STTextView-Plugin-Neon (Tree-sitter based)
+## 4. Neon + Tree-sitter
 
-**Status:** Currently in use (uncommitted changes, post-v0.2.0, after CodeEditSourceEditor attempt)
+**Status:** Currently in use — Successfully implemented with Swift 6
 
 **Details:**
-- Native macOS text view with TextKit 2
-- Tree-sitter based syntax highlighting via Neon plugin
-- Supports many languages: Swift, Python, JavaScript, TypeScript, Go, Rust, Ruby, Java, C/C++, C#, Bash, HTML, CSS, JSON, YAML, TOML, Markdown, SQL, PHP
-- Line numbers, highlight current line, word wrap options
-- SwiftUI wrapper via `STTextViewSwiftUI`
+- Native NSTextView with TextKit 2
+- Tree-sitter based syntax highlighting via Neon
+- Swift 6 compatible (using main branch with fix f159801)
+- Languages: Swift, Python (extensible to 30+ via TreeSitterLanguages)
 
 **Implementation:**
-- `CodeEditorSubview.swift` - Used for code files
-- `MarkdownEditorSubview.swift` - Used for markdown files in split-view
-- Both use `NeonPlugin` for syntax highlighting
+- `CodeEditorView.swift` - SwiftUI wrapper with `TextViewHighlighter`
+- `TokenAttributeProvider` for theme-based syntax coloring
+- GitHub light/dark themes with proper token colors
 
 **Dependencies:**
 ```swift
 // Package.swift
-.package(url: "https://github.com/krzyzanowskim/STTextView", from: "2.2.2"),
-.package(url: "https://github.com/krzyzanowskim/STTextView-Plugin-Neon", revision: "482b73cf442b2262525a0aa4355603b6467b6084"),
+.package(url: "https://github.com/ChimeHQ/Neon", revision: "484d6fb"),
+.package(url: "https://github.com/ChimeHQ/SwiftTreeSitter", from: "0.8.0"),
+.package(url: "https://github.com/simonbs/TreeSitterLanguages", from: "0.1.10"),
 ```
 
-**Why chosen:**
-- Better language support via Tree-sitter
-- More performant highlighting
-- Native macOS feel with modern TextKit 2
-- Good SwiftUI integration
+**Why it works:**
+- Neon pinned to commit `484d6fb` (post-0.6.0) which includes commit f159801 fixing Swift 6 strict concurrency
+- SPI reports zero data race safety errors
 
 **Links:**
-- STTextView: https://github.com/krzyzanowskim/STTextView
-- STTextView-Plugin-Neon: https://github.com/krzyzanowskim/STTextView-Plugin-Neon
+- Neon: https://github.com/ChimeHQ/Neon
+- SwiftTreeSitter: https://github.com/ChimeHQ/SwiftTreeSitter
+- TreeSitterLanguages: https://github.com/simonbs/TreeSitterLanguages
 
 ---
 
-## Summary Timeline
+## 5. STTextView (Not Used)
 
-| Commit/Tag | Editor | Notes |
-|---------|--------|-------|
-| Initial commit (ff14097) | mchakravarty/CodeEditorView | First implementation, immediately replaced |
-| 1db2b14 - v0.2.0 | ZeeZide/CodeEditor | Used for shipped v0.1.0 and v0.2.0 releases |
-| Uncommitted attempt | CodeEditSourceEditor | Tried to fix flicker, abandoned due to markdown issues |
-| Current (uncommitted) | STTextView + Neon | Final solution with proper markdown support |
+**Status:** Not attempted — went directly to Neon
+
+**Details:**
+- Alternative tree-sitter based editor
+- STTextView + STTextView-Plugin-Neon
+- Uses same Neon library underneath
+
+**Why not used:**
+- Direct Neon integration provides more control
+- Simpler dependency chain
 
 ---
 
 ## Related Components
 
 - **Markdown Preview:** Uses `swift-markdown-ui` (MarkdownUI package) for the preview pane in split-view mode
-- **Split Editor:** `SplitEditorView.swift` combines `MarkdownEditorSubview` (STTextView) with `MarkdownPreviewView` (MarkdownUI)
+- **Split Editor:** `SplitEditorView.swift` combines `MarkdownEditorSubview` (Neon-highlighted) with `MarkdownPreviewView` (MarkdownUI)
+- **Code Editor:** `CodeEditorView.swift` - SwiftUI wrapper with `TextViewHighlighter` for syntax highlighting

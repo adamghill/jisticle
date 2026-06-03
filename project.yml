@@ -3,15 +3,21 @@ options:
   bundleIdPrefix: com.adamghill
 
 packages:
-  CodeEditor:
-    url: https://github.com/ZeeZide/CodeEditor.git
-    from: 1.0.0
   KeychainAccess:
     url: https://github.com/kishikawakatsumi/KeychainAccess.git
     from: 4.2.2
   MarkdownUI:
     url: https://github.com/gonzalezreal/swift-markdown-ui
     from: 2.1.0
+  SwiftTreeSitter:
+    url: https://github.com/ChimeHQ/SwiftTreeSitter
+    from: 0.8.0
+  Neon:
+    url: https://github.com/ChimeHQ/Neon
+    revision: 484d6fb
+  TreeSitterLanguages:
+    url: https://github.com/simonbs/TreeSitterLanguages
+    from: 0.1.10
 
 targets:
   Jisticle:
@@ -34,9 +40,127 @@ targets:
       ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
       ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
     dependencies:
-      - package: CodeEditor
-        product: CodeEditor
       - package: KeychainAccess
         product: KeychainAccess
       - package: MarkdownUI
         product: MarkdownUI
+      - package: SwiftTreeSitter
+        product: SwiftTreeSitter
+      - package: Neon
+        product: Neon
+      - package: TreeSitterLanguages
+        product: TreeSitterBash
+      - package: TreeSitterLanguages
+        product: TreeSitterBashQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterC
+      - package: TreeSitterLanguages
+        product: TreeSitterCQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterCSharp
+      - package: TreeSitterLanguages
+        product: TreeSitterCSharpQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterCPP
+      - package: TreeSitterLanguages
+        product: TreeSitterCPPQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterCSS
+      - package: TreeSitterLanguages
+        product: TreeSitterCSSQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterElixir
+      - package: TreeSitterLanguages
+        product: TreeSitterElixirQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterGo
+      - package: TreeSitterLanguages
+        product: TreeSitterGoQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterHaskell
+      - package: TreeSitterLanguages
+        product: TreeSitterHaskellQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterHTML
+      - package: TreeSitterLanguages
+        product: TreeSitterHTMLQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterJava
+      - package: TreeSitterLanguages
+        product: TreeSitterJavaQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterJavaScript
+      - package: TreeSitterLanguages
+        product: TreeSitterJavaScriptQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterJSON
+      - package: TreeSitterLanguages
+        product: TreeSitterJSONQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterLaTeX
+      - package: TreeSitterLanguages
+        product: TreeSitterLaTeXQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterLua
+      - package: TreeSitterLanguages
+        product: TreeSitterLuaQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterMarkdown
+      - package: TreeSitterLanguages
+        product: TreeSitterMarkdownQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterMarkdownInline
+      - package: TreeSitterLanguages
+        product: TreeSitterMarkdownInlineQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterPerl
+      - package: TreeSitterLanguages
+        product: TreeSitterPerlQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterPHP
+      - package: TreeSitterLanguages
+        product: TreeSitterPHPQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterPython
+      - package: TreeSitterLanguages
+        product: TreeSitterPythonQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterR
+      - package: TreeSitterLanguages
+        product: TreeSitterRQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterRuby
+      - package: TreeSitterLanguages
+        product: TreeSitterRubyQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterRust
+      - package: TreeSitterLanguages
+        product: TreeSitterRustQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterSCSS
+      - package: TreeSitterLanguages
+        product: TreeSitterSCSSQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterSQL
+      - package: TreeSitterLanguages
+        product: TreeSitterSQLQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterSwift
+      - package: TreeSitterLanguages
+        product: TreeSitterSwiftQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterTOML
+      - package: TreeSitterLanguages
+        product: TreeSitterTOMLQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterTSX
+      - package: TreeSitterLanguages
+        product: TreeSitterTSXQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterTypeScript
+      - package: TreeSitterLanguages
+        product: TreeSitterTypeScriptQueries
+      - package: TreeSitterLanguages
+        product: TreeSitterYAML
+      - package: TreeSitterLanguages
+        product: TreeSitterYAMLQueries

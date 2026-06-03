@@ -1,11 +1,10 @@
-import CodeEditor
 import SwiftUI
 
 struct MarkdownEditorSubview: View {
     let gist: Gist
     let file: GistFile
-    let language: CodeEditor.Language
-    let theme: CodeEditor.ThemeName
+    let language: Language
+    let theme: EditorTheme
     let fontSize: Binding<CGFloat>
     let initialContent: String
     let onContentChange: (String) -> Void
@@ -15,8 +14,8 @@ struct MarkdownEditorSubview: View {
     init(
         gist: Gist,
         file: GistFile,
-        language: CodeEditor.Language,
-        theme: CodeEditor.ThemeName,
+        language: Language,
+        theme: EditorTheme,
         fontSize: Binding<CGFloat>,
         initialContent: String,
         onContentChange: @escaping (String) -> Void
@@ -32,16 +31,16 @@ struct MarkdownEditorSubview: View {
     }
     
     var body: some View {
-        CodeEditor(
-            source: $text,
+        CodeEditorView(
+            text: $text,
             language: language,
             theme: theme,
             fontSize: fontSize,
-            flags: [.editable, .selectable, .smartIndent]
+            isEditable: true,
+            onTextChange: { newValue in
+                onContentChange(newValue)
+            }
         )
-        .onChange(of: text) { _, newValue in
-            onContentChange(newValue)
-        }
         .onChange(of: initialContent) { _, newValue in
             // Sync when parent loads new content (e.g., file switch)
             if text != newValue {

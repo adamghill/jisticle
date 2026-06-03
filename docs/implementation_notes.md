@@ -34,11 +34,29 @@
 - ❌ Markdown language support broken (non-standard capture names)
 - ❌ Full migration completed but abandoned due to markdown issues
 
-**Current (post-v0.2.0, after CodeEditSourceEditor attempt):** `STTextView + STTextView-Plugin-Neon` (Tree-sitter based).
-- ✅ Native TextKit 2 based - better macOS integration
-- ✅ More native-feeling editor (Xcode-inspired)
-- ✅ Tree-sitter syntax highlighting with proper markdown support
-- ❌ More complex integration with Auto Layout constraints
+**Current (post-v0.2.0, after CodeEditSourceEditor attempt):** `Neon + TreeSitterLanguages` (Tree-sitter based).
+- ✅ Native NSTextView with TextKit 2 - better macOS integration
+- ✅ Tree-sitter incremental parsing - no flicker, fast highlighting
+- ✅ Swift 6 compatible (pinned to commit `484d6fb` post-0.6.0)
+- ✅ Proper markdown support via TreeSitterLanguages
+- ❌ Dependency size (~15-25MB with full language bundle)
+
+**Dependency Pinning Note:**
+Neon is pinned to revision `484d6fb` (post-0.6.0) because:
+- v0.6.0 has a Swift 6 strict concurrency error in `TreeSitterClient.swift:451`
+- Commit `f159801` (included in `484d6fb`) fixes this with proper `@MainActor` handling
+- Pinning ensures reproducible builds until v0.6.1+ is released
+
+```swift
+// Package.swift
+.package(url: "https://github.com/ChimeHQ/Neon", revision: "484d6fb"),
+```
+
+**Known Limitations:**
+- Neon only highlights **visible content** by design (performance optimization for large files)
+- Full-document highlighting requires scrolling to trigger re-highlighting of newly visible content
+- This is controlled by `visibleContentChanged` which calls `styler.validate(.range(visibleRange))`
+- The `styler` is private, so we cannot force full-document validation
 
 ### 3. Architecture: Protocol-Based Service Layer
 

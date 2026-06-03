@@ -1,4 +1,3 @@
-import CodeEditor
 import SwiftUI
 
 @MainActor
@@ -9,8 +8,8 @@ struct EditorView: View {
     @AppStorage("editorFontSize") private var fontSize = Int(NSFont.monospacedSystemFont(ofSize: 0, weight: .regular).pointSize)
     @AppStorage("showMarkdownPreview") private var showMarkdownPreview = true
     @State private var currentContent: String = ""
-    @State private var currentLanguage: CodeEditor.Language = .init(rawValue: "plaintext")
-    @State private var cachedTheme: CodeEditor.ThemeName?
+    @State private var currentLanguage: Language = .plaintext
+    @State private var cachedTheme: EditorTheme?
     @State private var lastColorScheme: ColorScheme?
     private var isDirty: Bool {
         guard let gist = appState.selectedGist, let file = appState.selectedFile else { return false }
@@ -18,11 +17,11 @@ struct EditorView: View {
             || (appState.newFilenames.contains(file.filename) && !(file.content?.isEmpty ?? true))
     }
 
-    private var theme: CodeEditor.ThemeName {
+    private var theme: EditorTheme {
         if let cachedTheme, lastColorScheme == colorScheme {
             return cachedTheme
         }
-        let newTheme: CodeEditor.ThemeName = colorScheme == .dark ? .init(rawValue: "github-dark") : .init(rawValue: "github")
+        let newTheme: EditorTheme = colorScheme == .dark ? .githubDark : .github
         cachedTheme = newTheme
         lastColorScheme = colorScheme
         return newTheme
@@ -181,10 +180,9 @@ struct EditorView: View {
         }
     }
 
-    // Maps GitHub languages to ZeeZide/CodeEditor languages
-    // ZeeZide/CodeEditor supports 180+ languages via highlight.js
-    private func language(for file: GistFile?) -> CodeEditor.Language {
-        guard let file else { return .init(rawValue: "plaintext") }
+    // Maps GitHub languages to tree-sitter Language enum
+    private func language(for file: GistFile?) -> Language {
+        guard let file else { return .plaintext }
         let ext = (file.filename as NSString).pathExtension.lowercased()
 
         switch ext {
@@ -192,41 +190,41 @@ struct EditorView: View {
         case "py":                              return .python
         case "js", "mjs", "cjs":               return .javascript
         case "ts", "mts", "cts":               return .typescript
-        case "jsx":                             return .init(rawValue: "jsx")
-        case "tsx":                             return .init(rawValue: "tsx")
+        case "jsx":                             return .jsx
+        case "tsx":                             return .tsx
         case "rb", "rake", "gemspec":           return .ruby
         case "go":                              return .go
         case "rs":                              return .rust
         case "java":                            return .java
-        case "kt", "kts":                       return .init(rawValue: "kotlin")
-        case "cs":                              return .cs
+        case "kt", "kts":                       return .kotlin
+        case "cs":                              return .csharp
         case "cpp", "cxx", "cc", "c++":        return .cpp
         case "c", "h":                          return .c
         case "m", "mm":                         return .objectivec
         case "sh", "bash", "zsh", "fish":       return .shell
-        case "html", "htm":                     return .init(rawValue: "html")
+        case "html", "htm":                     return .html
         case "css":                             return .css
-        case "scss", "sass":                    return .init(rawValue: "scss")
+        case "scss", "sass":                    return .scss
         case "json":                            return .json
         case "xml", "plist", "svg":             return .xml
         case "yaml", "yml":                     return .yaml
-        case "toml":                            return .init(rawValue: "toml")
+        case "toml":                            return .toml
         case "md", "markdown":                  return .markdown
         case "sql":                             return .sql
-        case "r":                               return .init(rawValue: "r")
+        case "r":                               return .r
         case "php":                             return .php
-        case "pl", "pm":                        return .init(rawValue: "perl")
+        case "pl", "pm":                        return .perl
         case "lua":                             return .lua
-        case "hs", "lhs":                       return .init(rawValue: "haskell")
-        case "ex", "exs":                       return .init(rawValue: "elixir")
-        case "erl", "hrl":                      return .init(rawValue: "erlang")
-        case "scala":                           return .init(rawValue: "scala")
-        case "dart":                            return .init(rawValue: "dart")
+        case "hs", "lhs":                       return .haskell
+        case "ex", "exs":                       return .elixir
+        case "erl", "hrl":                      return .erlang
+        case "scala":                           return .scala
+        case "dart":                            return .dart
         case "dockerfile":                      return .dockerfile
         case "makefile", "mk":                  return .makefile
-        case "ini", "cfg", "conf":              return .init(rawValue: "ini")
+        case "ini", "cfg", "conf":              return .ini
         case "tex":                             return .tex
-        case "vim":                             return .init(rawValue: "vim")
+        case "vim":                             return .vim
         default:                                break
         }
 
@@ -240,32 +238,32 @@ struct EditorView: View {
         case "go":                              return .go
         case "rust":                            return .rust
         case "java":                            return .java
-        case "kotlin":                          return .init(rawValue: "kotlin")
-        case "c#":                              return .cs
+        case "kotlin":                          return .kotlin
+        case "c#":                              return .csharp
         case "c++":                             return .cpp
         case "c":                               return .c
         case "objective-c", "objective-c++":   return .objectivec
         case "shell", "bash":                   return .shell
-        case "html":                            return .init(rawValue: "html")
+        case "html":                            return .html
         case "css":                             return .css
         case "json":                            return .json
         case "xml":                             return .xml
         case "yaml":                            return .yaml
         case "markdown":                        return .markdown
-        case "sql", "plpgsql", "tsql":          return .pgsql
-        case "r":                               return .init(rawValue: "r")
+        case "sql", "plpgsql", "tsql":          return .sql
+        case "r":                               return .r
         case "php":                             return .php
-        case "perl":                            return .init(rawValue: "perl")
+        case "perl":                            return .perl
         case "lua":                             return .lua
-        case "haskell":                         return .init(rawValue: "haskell")
-        case "elixir":                          return .init(rawValue: "elixir")
-        case "erlang":                          return .init(rawValue: "erlang")
-        case "scala":                           return .init(rawValue: "scala")
-        case "dart":                            return .init(rawValue: "dart")
+        case "haskell":                         return .haskell
+        case "elixir":                          return .elixir
+        case "erlang":                          return .erlang
+        case "scala":                           return .scala
+        case "dart":                            return .dart
         case "dockerfile":                      return .dockerfile
         case "makefile":                        return .makefile
         case "tex":                             return .tex
-        default:                                return .init(rawValue: "plaintext")
+        default:                                return .plaintext
         }
     }
 
@@ -279,8 +277,8 @@ struct EditorView: View {
     
     @ViewBuilder
     private func codeEditorView(file: GistFile) -> some View {
-        CodeEditor(
-            source: .init(
+        CodeEditorView(
+            text: .init(
                 get: { currentContent },
                 set: { newValue in
                     currentContent = newValue
@@ -299,7 +297,19 @@ struct EditorView: View {
             language: currentLanguage,
             theme: theme,
             fontSize: .init(get: { CGFloat(fontSize) }, set: { fontSize = Int($0) }),
-            flags: [.editable, .selectable, .smartIndent]
+            isEditable: true,
+            onTextChange: { newValue in
+                if let gist = appState.selectedGist, let file = appState.selectedFile {
+                    let key = "\(gist.id)/\(file.filename)"
+                    if newValue == (file.content ?? "") {
+                        appState.pendingEdits.removeValue(forKey: key)
+                        appState.editedKeys.remove(key)
+                    } else {
+                        appState.pendingEdits[key] = newValue
+                        appState.editedKeys.insert(key)
+                    }
+                }
+            }
         )
         .onAppear {
             if let gist = appState.selectedGist {
