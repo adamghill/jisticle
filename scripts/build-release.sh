@@ -18,6 +18,7 @@ swift package resolve
 
 # Generate Xcode Project
 echo "Generating Xcode project with XcodeGen..."
+rm -rf "${APP_NAME}.xcodeproj"
 xcodegen generate
 
 # Archive the project
@@ -56,9 +57,6 @@ hdiutil create -volname "${APP_NAME}" -srcfolder "${APP_PATH}" -ov -format UDZO 
 echo "Mounting DMG to copy fresh .app..."
 MOUNT_OUTPUT=$(hdiutil attach "${APP_NAME}-macOS.dmg" -nobrowse)
 MOUNT_POINT=$(echo "${MOUNT_OUTPUT}" | grep -o '/Volumes/.*' | tail -1)
-
-echo "Copying .app from mounted DMG..."
-cp -R "${MOUNT_POINT}/${APP_NAME}.app" "./${APP_NAME}.app"
 
 # Open DMG in Finder
 echo "Opening DMG..."
