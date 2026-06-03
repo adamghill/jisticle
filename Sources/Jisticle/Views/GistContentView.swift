@@ -82,6 +82,10 @@ struct GistContentView: View {
                         }
                         .pointingCursor()
                         .help("Download ZIP archive")
+                    } else {
+                        Label("Download", systemImage: "arrow.down.circle")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                     }
                 }
             }
