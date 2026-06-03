@@ -4,6 +4,7 @@ import SwiftUI
 struct SplitEditorView: View {
     @Environment(AppState.self) private var appState
     @Environment(\.colorScheme) private var colorScheme
+    @Binding var showPreview: Bool
     @State private var splitPosition: CGFloat = 0.5
     
     @AppStorage("editorFontSize") private var fontSize = Int(NSFont.monospacedSystemFont(ofSize: 0, weight: .regular).pointSize)
@@ -65,11 +66,13 @@ struct SplitEditorView: View {
             .frame(minWidth: 200)
             
             // Preview pane
-            VStack(spacing: 0) {
-                MarkdownPreviewView(content: debouncedPreviewContent)
+            if showPreview {
+                VStack(spacing: 0) {
+                    MarkdownPreviewView(content: debouncedPreviewContent)
+                }
+                .frame(minWidth: 200)
+                .id("preview-\(appState.selectedGist?.id ?? "")-\(appState.selectedFile?.filename ?? "")")
             }
-            .frame(minWidth: 200)
-            .id("preview-\(appState.selectedGist?.id ?? "")-\(appState.selectedFile?.filename ?? "")")
         }
         .onAppear {
             loadContent()
@@ -255,7 +258,7 @@ struct SplitEditorView: View {
 }
 
 #Preview {
-    SplitEditorView()
+    SplitEditorView(showPreview: .constant(true))
         .environment(AppState())
         .frame(width: 800, height: 600)
 }

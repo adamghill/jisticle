@@ -7,6 +7,7 @@ struct EditorView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     @AppStorage("editorFontSize") private var fontSize = Int(NSFont.monospacedSystemFont(ofSize: 0, weight: .regular).pointSize)
+    @AppStorage("showMarkdownPreview") private var showMarkdownPreview = true
     @State private var currentContent: String = ""
     @State private var currentLanguage: CodeEditor.Language = .init(rawValue: "plaintext")
     @State private var cachedTheme: CodeEditor.ThemeName?
@@ -101,6 +102,15 @@ struct EditorView: View {
                         .foregroundStyle(.orange)
                 }
 
+                if appState.isMarkdownFile {
+                    Button {
+                        showMarkdownPreview.toggle()
+                    } label: {
+                        Image(systemName: showMarkdownPreview ? "eye.slash" : "eye")
+                    }
+                    .help(showMarkdownPreview ? "Hide Preview" : "Show Preview")
+                }
+
                 Button("Save") {
                     saveChanges()
                 }
@@ -115,7 +125,7 @@ struct EditorView: View {
             // Conditional content based on file type
             Group {
                 if appState.isMarkdownFile {
-                    SplitEditorView()
+                    SplitEditorView(showPreview: $showMarkdownPreview)
                 } else {
                     codeEditorView(file: file)
                 }
