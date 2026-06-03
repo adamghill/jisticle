@@ -123,11 +123,48 @@ class GitHubGistProvider: GistProvider, ObservableObject {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
+        var gist: Gist
         do {
-            return try decoder.decode(Gist.self, from: data)
+            gist = try decoder.decode(Gist.self, from: data)
         } catch {
             throw GistProviderError.decodingError(error)
         }
+
+        // The REST API only inlines file content up to ~1MB. Larger files come
+        // back with `truncated == true` and partial `content`, so fetch the
+        // full text from `raw_url` to show the complete file in the editor.
+        for (name, file) in gist.files where file.truncated == true && !file.rawUrl.isEmpty {
+            if let fullContent = try? await fetchRawContent(from: file.rawUrl) {
+                var resolved = file
+                resolved.content = fullContent
+                gist.files[name] = resolved
+            }
+        }
+
+        return gist
+    }
+
+    /// Fetches a gist file's full, untruncated content directly from its
+    /// `raw_url`. The REST gist endpoint truncates content over ~1MB; the raw
+    /// host serves the complete file.
+    private func fetchRawContent(from urlString: String) async throws -> String {
+        guard let url = URL(string: urlString) else {
+            throw GistProviderError.invalidResponse
+        }
+
+        var request = URLRequest(url: url)
+        if let token = authService.getAccessToken() {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw GistProviderError.invalidResponse
+        }
+
+        return String(data: data, encoding: .utf8) ?? ""
     }
 
     func createGist(_ draft: GistDraft) async throws -> Gist {

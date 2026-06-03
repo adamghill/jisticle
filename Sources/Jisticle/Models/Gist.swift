@@ -11,7 +11,7 @@ struct Gist: Identifiable, Codable, Equatable, Hashable {
     let description: String?
     let `public`: Bool
     let owner: GistOwner?
-    let files: [String: GistFile]
+    var files: [String: GistFile]
     let createdAt: Date
     let updatedAt: Date
     let htmlUrl: String
