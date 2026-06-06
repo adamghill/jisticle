@@ -35,10 +35,11 @@
 - ❌ Full migration completed but abandoned due to markdown issues
 
 **Current (post-v0.2.0, after CodeEditSourceEditor attempt):** `Neon + TreeSitterLanguages` (Tree-sitter based).
-- ✅ Native NSTextView with TextKit 2 - better macOS integration
+- ✅ Native NSTextView with TextKit 1 - better macOS integration
 - ✅ Tree-sitter incremental parsing - no flicker, fast highlighting
 - ✅ Swift 6 compatible (pinned to commit `484d6fb` post-0.6.0)
 - ✅ Proper markdown support via TreeSitterLanguages
+- ✅ Full-document highlighting via TextKit 1 temporary attributes
 - ❌ Dependency size (~15-25MB with full language bundle)
 
 **Dependency Pinning Note:**
@@ -53,10 +54,8 @@ Neon is pinned to revision `484d6fb` (post-0.6.0) because:
 ```
 
 **Known Limitations:**
-- Neon only highlights **visible content** by design (performance optimization for large files)
-- Full-document highlighting requires scrolling to trigger re-highlighting of newly visible content
-- This is controlled by `visibleContentChanged` which calls `styler.validate(.range(visibleRange))`
-- The `styler` is private, so we cannot force full-document validation
+- Syntax highlighting is skipped for files larger than 2MB to avoid initial load pauses (see `CodeEditorView.highlightingSizeThreshold`)
+- This threshold was chosen because 2MB of code is typically ~40k lines; contiguous layout is still fast, but tree-sitter highlighting the visible range plus tokenization overhead can produce a noticeable hiccup
 
 ### 3. Architecture: Protocol-Based Service Layer
 
@@ -102,18 +101,42 @@ Neon is pinned to revision `484d6fb` (post-0.6.0) because:
 **Extensions mapped:**
 - .swift → Swift
 - .py → Python
-- .js/.ts → JavaScript/TypeScript
+- .js/.mjs/.cjs → JavaScript
+- .ts/.mts/.cts → TypeScript
+- .jsx → JSX
+- .tsx → TSX
 - .json → JSON
-- .md → Markdown
+- .md/.markdown → Markdown
 - .go → Go
 - .rs → Rust
 - .java → Java
-- .c/.h/.cpp → C/C++
-- .html/.css → HTML/CSS
+- .kt/.kts → Kotlin
+- .cs → C#
+- .cpp/.cxx/.cc/.c++ → C++
+- .c/.h → C
+- .m/.mm → Objective-C
+- .sh/.bash/.zsh/.fish → Bash
+- .html/.htm → HTML
+- .css → CSS
+- .scss/.sass → SCSS
 - .sql → SQL
-- .sh/.bash/.zsh → Bash
+- .r → R
+- .php → PHP
+- .pl/.pm → Perl
+- .lua → Lua
+- .hs/.lhs → Haskell
+- .ex/.exs → Elixir
+- .erl/.hrl → Erlang
+- .scala → Scala
+- .dart → Dart
+- .dockerfile → Dockerfile
+- .makefile/.mk → Makefile
 - .yaml/.yml → YAML
-- Dockerfile → Dockerfile
+- .toml → TOML
+- .xml/.plist/.svg → XML
+- .ini/.cfg/.conf → INI
+- .tex → LaTeX
+- .vim → Vim
 
 ### 7. Three-Pane Layout: NavigationSplitView
 
@@ -181,27 +204,33 @@ Neon is pinned to revision `484d6fb` (post-0.6.0) because:
 - `CodeEditorView` requires 12+
 - Most users on modern macOS versions
 
-### 14. Syntax Highlighting Language Support
+### 14. Markdown Preview Architecture
 
-**Decision:** Limited to languages supported by CodeEditorView (swift, haskell, agda, cabal, cypher).
+**Decision:** Implemented split view editor with live markdown preview for .md and .markdown files.
 
 **Trade-offs:**
-- ✅ Simple integration
-- ✅ Good Swift support
-- ❌ No Python, JavaScript, TypeScript, etc. highlighting
-- ❌ Would need additional packages for more languages
+- ✅ Real-time preview with 50ms debouncing for responsive updates
+- ✅ Uses swift-markdown-ui for proper rendering (code blocks, tables, lists, etc.)
+- ✅ Theme-aware (docC for dark mode, gitHub for light mode)
+- ✅ Isolated editor subview prevents cursor jumping on preview updates
+- ❌ Only available for markdown files (not other markup formats)
+- ❌ Preview doesn't support custom themes or extensions
 
-**Future:** Could add tree-sitter based highlighting via additional packages.
+**Implementation Details:**
+- `SplitEditorView` uses `HSplitView` with editor and preview panes
+- `MarkdownEditorSubview` isolates the editor to prevent cursor jumping when preview updates
+- Preview updates are debounced (50ms) to avoid excessive re-renders during typing
+- Language changes are debounced (100ms) to avoid re-initializing the editor unnecessarily
+- Theme switching is cached to avoid recalculating on every render
 
 ## Known Limitations / V2 Ideas
 
-1. **No Markdown Preview** - Planned for V2
-2. **No Offline Cache** - Would require Core Data/SQLite backing store
-3. **No Multi-file Gist Creation** - UI supports it but API call needs updating
-4. **No Star/Fork** - Easy to add, just UI work
-5. **No Public Gist Browsing** - Limited to authenticated user's gists
-6. **No Syntax Highlighting Language Customization** - Uses hardcoded themes
-7. **No Settings/Preferences** - Could add theme switching, font size, etc.
+1. **Limited Offline Cache** - Gist list is cached to disk as JSON, but individual gist content is not cached
+2. **No Multi-file Gist Creation** - UI supports it but API call needs updating
+3. **No Star/Fork** - Easy to add, just UI work
+4. **No Public Gist Browsing** - Limited to authenticated user's gists
+5. **No Syntax Highlighting Language Customization** - Uses hardcoded themes
+6. **No Settings/Preferences** - Could add theme switching, font size, etc.
 
 ## GitHub OAuth App Setup (Required)
 

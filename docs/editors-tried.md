@@ -87,15 +87,21 @@ This document tracks the different code editor approaches tried during Jisticle'
 **Status:** Currently in use — Successfully implemented with Swift 6
 
 **Details:**
-- Native NSTextView with TextKit 2
+- Native NSTextView with TextKit 1 (required for full-document highlighting)
 - Tree-sitter based syntax highlighting via Neon
-- Swift 6 compatible (using main branch with fix f159801)
-- Languages: Swift, Python (extensible to 30+ via TreeSitterLanguages)
+- Swift 6 compatible (pinned to commit 484d6fb post-0.6.0)
+- 30+ languages via TreeSitterLanguages: Swift, Python, JavaScript, TypeScript, Go, Rust, Java, C/C++, C#, Ruby, PHP, HTML, CSS, SQL, R, Perl, Lua, Haskell, Elixir, LaTeX, TOML, YAML, JSON, Bash, Dockerfile, Makefile, and more
+- Syntax highlighting skipped for files >2MB to avoid initial load pauses
+- Markdown files show split view with live preview using swift-markdown-ui
 
 **Implementation:**
-- `CodeEditorView.swift` - SwiftUI wrapper with `TextViewHighlighter`
-- `TokenAttributeProvider` for theme-based syntax coloring
+- `CodeEditorView.swift` - SwiftUI wrapper with NSTextView(usingTextLayoutManager: false)
+- Uses TextKit 1 temporary attributes for full-document highlighting (TextKit 2 only highlights visible ranges)
+- `SplitEditorView.swift` - Split view editor for markdown with live preview
+- `MarkdownEditorSubview.swift` - Isolated editor subview prevents cursor jumping on preview updates
+- `MarkdownPreviewView.swift` - Markdown preview rendering with theme support
 - GitHub light/dark themes with proper token colors
+- Preview updates debounced (50ms), language changes debounced (100ms)
 
 **Dependencies:**
 ```swift
@@ -103,22 +109,25 @@ This document tracks the different code editor approaches tried during Jisticle'
 .package(url: "https://github.com/ChimeHQ/Neon", revision: "484d6fb"),
 .package(url: "https://github.com/ChimeHQ/SwiftTreeSitter", from: "0.8.0"),
 .package(url: "https://github.com/simonbs/TreeSitterLanguages", from: "0.1.10"),
+.package(url: "https://github.com/gonzalezreal/swift-markdown-ui", from: "2.1.0"),
 ```
 
 **Why it works:**
 - Neon pinned to commit `484d6fb` (post-0.6.0) which includes commit f159801 fixing Swift 6 strict concurrency
+- TextKit 1 temporary attributes persist for entire document, not just visible ranges
 - SPI reports zero data race safety errors
 
 **Links:**
 - Neon: https://github.com/ChimeHQ/Neon
 - SwiftTreeSitter: https://github.com/ChimeHQ/SwiftTreeSitter
 - TreeSitterLanguages: https://github.com/simonbs/TreeSitterLanguages
+- swift-markdown-ui: https://github.com/gonzalezreal/swift-markdown-ui
 
 ---
 
 ## 5. STTextView (Not Used)
 
-**Status:** Not attempted — went directly to Neon
+**Status:** Attempted — switched to NSTextView with TextKit 1
 
 **Details:**
 - Alternative tree-sitter based editor
