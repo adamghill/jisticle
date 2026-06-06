@@ -1,3 +1,12 @@
+## 0.4.0
+
+- Switched to Neon + Tree-sitter to prevent the entire document from re-rendering during syntax highlighting on every keypress
+- Added 2MB highlighting threshold to avoid initial load pauses on large files
+- Handle truncated content for files that are bigger than 1MB
+- Improved markdown preview
+- Added debouncing for preview updates (50ms) and language changes (100ms)
+- Misc UI improvements
+
 ## 0.3.0
 
 - Markdown preview
